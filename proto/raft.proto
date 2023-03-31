@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "io.grpc.examples.raft";
+option java_outer_classname = "RaftProto";
+option objc_class_prefix = "Raft";
+
+package raft;
+
+service Raft {
+    rpc AppendEntries (RaftRequest) returns (RaftReply) {}
+    rpc RequestVote (RaftRequest) returns (RaftReply) {}
+}
+
+message RaftRequest {
+  uint32 term = 1;
+  uint32 serverID = 2;
+  uint32 prevLogIdx = 3;
+  uint32 prevLogTerm = 4;
+  bool isHeartbeat = 5;
+  int32 logEntry = 6;
+  uint32 leaderCommit = 7;
+}
+
+message RaftReply {
+  uint32 term = 1;
+  bool appendSuccess = 2;
+  bool voteGranted = 3;
+}
+

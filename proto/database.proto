@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "io.grpc.examples.database";
+option java_outer_classname = "DatabaseProto";
+option objc_class_prefix = "Database";
+
+package database;
+
+service Database {
+    rpc Get (DatabaseRequest) returns (DatabaseReply) {}
+    rpc Set (DatabaseRequest) returns (DatabaseReply) {}
+}
+
+message DatabaseRequest {
+  uint32 sequenceID = 1;
+  string dataKey = 2; 
+  int32 dataValue = 3;
+}
+
+message DatabaseResponse {
+  bool success = 1;
+  uint32 leaderID = 2;
+  int32 dataValue = 3;
+}
