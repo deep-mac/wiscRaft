@@ -75,11 +75,12 @@ class DatabaseClient {
 };
 
 int main(int argc, char** argv) {
-  std::string target_str = "localhost:50051";
+  std::string target_str = "10.10.1.2:50051";
   DatabaseClient client(
       grpc::CreateChannel(target_str, grpc::InsecureChannelCredentials()));
 
   // Commands go here
-
+  client.put("a", 10);
+  client.get("a");
   return 0;
 }
