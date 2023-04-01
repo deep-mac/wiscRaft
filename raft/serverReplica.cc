@@ -99,7 +99,7 @@ class RaftRequester {
 
 	ClientContext context;
 
-	Status status = stub_->AppendEntries(&context, request, &reply);
+	Status status = stub_->RequestVote(&context, request, &reply);
 
 	if (status.ok()) {
 	  return;
