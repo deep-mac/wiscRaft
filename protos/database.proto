@@ -8,8 +8,8 @@ option objc_class_prefix = "Database";
 package database;
 
 service Database {
-    rpc Get (DatabaseRequest) returns (DatabaseReply) {}
-    rpc Set (DatabaseRequest) returns (DatabaseReply) {}
+    rpc Get (DatabaseRequest) returns (DatabaseResponse) {}
+    rpc Put (DatabaseRequest) returns (DatabaseResponse) {}
 }
 
 message DatabaseRequest {

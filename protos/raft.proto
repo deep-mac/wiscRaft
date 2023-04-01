@@ -18,8 +18,10 @@ message RaftRequest {
   uint32 prevLogIdx = 3;
   uint32 prevLogTerm = 4;
   bool isHeartbeat = 5;
-  int32 logEntry = 6;
-  uint32 leaderCommit = 7;
+  string logKey = 6;
+  int32 logValue = 7;
+  uint32 leaderCommit = 8;
+  bool command = 9;
 }
 
 message RaftReply {
