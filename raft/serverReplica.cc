@@ -128,7 +128,8 @@ class RaftResponder final : public Raft::Service {
 
 
 void RunDatabase() {
-  std::string server_address("0.0.0.0:4096");
+  std::string server_address("10.10.1.2:50051");
+
   DatabaseImpl service;
 
   grpc::EnableDefaultHealthCheckService(true);
