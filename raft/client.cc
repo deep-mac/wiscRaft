@@ -28,6 +28,7 @@ class DatabaseClient {
   // Assembles the client's payload, sends it and presents the response back
   // from the server.
   int get(const std::string key) {
+    std::cout << "Entering Get\n";
     DatabaseRequest request;
     request.set_sequenceid(sequenceID);
     request.set_datakey(key);
@@ -35,9 +36,10 @@ class DatabaseClient {
     DatabaseResponse reply;
 
     ClientContext context;
-
+    printRequest(&request);
     Status status = stub_->Get(&context, request, &reply);
-
+    printResponse(&reply);
+    std::cout << "Exiting Get\n";
     // Act upon its status.
     if (status.ok()) {
       return reply.datavalue();
@@ -49,6 +51,7 @@ class DatabaseClient {
   }
 
   int put(const std::string key, const int value) {
+    std::cout << "Entering Put\n";
     DatabaseRequest request;
     request.set_sequenceid(sequenceID);
     request.set_datakey(key);
@@ -57,8 +60,10 @@ class DatabaseClient {
     DatabaseResponse reply;
 
     ClientContext context;
-
+    printRequest(&request);
     Status status = stub_->Put(&context, request, &reply);
+    printResponse(&reply);
+    std::cout << "Exiting Put\n";
 
     // Act upon its status.
     if (status.ok()) {
@@ -70,17 +75,39 @@ class DatabaseClient {
     }
   }
 
+  void printRequest(DatabaseRequest* request) {
+      std::cout <<" Printing Request : \n";
+      std::cout << "SequenceID : " << request->sequenceid() << ", dataKey : " <<request->datakey() << ", dataValue : " << request->datavalue() << std::endl;
+  }
+
+  void printResponse(DatabaseResponse* reply) {
+      std::cout <<" Printing Response : \n";
+      std::cout << "success : " << reply->success() << ", leaderID : " <<reply->leaderid() << ", dataValue : " << reply->datavalue() << std::endl;
+  }
+
  private:
   std::unique_ptr<Database::Stub> stub_;
 };
 
 int main(int argc, char** argv) {
-  std::string target_str = "10.10.1.2:50051";
+  std::string target_str = "10.10.1.3:50051";
   DatabaseClient client(
       grpc::CreateChannel(target_str, grpc::InsecureChannelCredentials()));
 
+  int value;
   // Commands go here
   client.put("a", 10);
-  client.get("a");
+  client.put("b", 15);
+  client.put("c", 20);
+  client.put("d", 25);
+  value = client.get("b");
+  std::cout << "b = " << value;
+  value = client.get("d");
+  std::cout << "d = " << value;
+  value = client.get("a");
+  std::cout << "a = " << value;
+  value = client.get("c");
+  std::cout << "c = " << value;
+
   return 0;
 }
