@@ -26,6 +26,8 @@ class LogEntry{
   value = copy.value;
   commandID = copy.commandID;
  }
+
+ void setEntry(bool command, std::string key, int value, uint32_t commandID);
 };
 
 class Log {
@@ -34,7 +36,7 @@ class Log {
  std::fstream fh;
  std::mutex logLock;
  uint32_t commitID;
- Database database;
+ LogDatabase database;
  public:
 
  Log() : database() {
@@ -44,6 +46,8 @@ class Log {
 
  //Should be called atomically for each append
  void LogAppend(LogEntry& Entry);
+ void LogAppend(bool command, std::string key, int value, uint32_t commandID);
+
 
  //Should be called atomically once for every execute
  void LogCleanup();

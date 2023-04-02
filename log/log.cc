@@ -1,15 +1,29 @@
 #include"log.hh"
 
 //Should be called atomically for each append
-void Log::LogAppend(LogEntry& Entry){
+void Log::LogAppend(LogEntry& entry){
   logLock.lock();
-  log.push_back(Entry);
+  log.push_back(entry);
   //fh.open("log.txt",std::fstream::app);
-  std::string line = std::to_string(Entry.isRead) + "$" + Entry.key + "$" + std::to_string(Entry.value) + "$" + std::to_string(Entry.commandID);
+  std::string line = std::to_string(entry.isRead) + "$" + entry.key + "$" + std::to_string(entry.value) + "$" + std::to_string(entry.commandID);
   fh << line << std::endl;
   //fh.close();
   logLock.unlock();
 }
+
+void Log::LogAppend(bool command, std::string newKey, int newValue, uint32_t newID) {
+
+  logLock.lock();
+  LogEntry entry;
+  entry.setEntry(command, newKey, newValue, newID);
+  log.push_back(entry);
+  //fh.open("log.txt",std::fstream::app);
+  std::string line = std::to_string(command) + "$" + newKey + "$" + std::to_string(newValue) + "$" + std::to_string(newID);
+  fh << line << std::endl;
+  //fh.close();
+  logLock.unlock();
+}
+
 
 //Should be called atomically once for every execute
 void Log::LogCleanup(){
@@ -56,13 +70,21 @@ int Log::executeEntry() {
     if (entry.isRead) {
 	ret = database.get(entry.key);
     } else {
-    	database.put(entry.key, entry.value);
+    	ret = database.put(entry.key, entry.value);
     }
+    log.pop_front();
     commitID--;
     return ret;
 }
 
-int main(){
+void LogEntry::setEntry(bool command, std::string newKey, int newValue, uint32_t newID) {
+    isRead = command;
+    key = newKey;
+    value = newValue;
+    commandID = newID;
+}
+
+/*int main(){
    LogEntry entry[4];
    Log log;
 
@@ -83,4 +105,4 @@ int main(){
    log.print();
 
    return 0;
-}
+}*/

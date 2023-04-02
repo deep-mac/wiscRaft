@@ -13,6 +13,7 @@
 #include "database.grpc.pb.h"
 #include "raft.grpc.pb.h"
 #endif
+#include "log.hh"
 
 using grpc::Channel;
 using grpc::Server;
@@ -28,16 +29,66 @@ using raft::RaftReply;
 using raft::RaftRequest;
 
 class DatabaseImpl final : public Database::Service {
+  public:
+  Log log;
+  uint32_t serverID;
+  uint32_t leaderID;
+
+  DatabaseImpl(uint32_t id) {
+    serverID = id;
+    //TODO: Change this. Add leader state
+    leaderID = id;
+  }
+
   Status Get(ServerContext* context, const DatabaseRequest* request, DatabaseResponse* reply) override {
     // Call get impl
-   std::cout << "Database:Entering Get\n";
+    std::cout << "Database:Entering Get\n";
+    uint32_t commandID = request->sequenceid();
+    std::string key = request->datakey();
+    int value =  request->datavalue();
+    printRequest(request);
+    log.LogAppend(true /*isRead*/, key, value, commandID);
+   
+    // TODO: Branch next few things into separate thread
+    log.commitEntry(commandID);
+    value = log.executeEntry();
+    reply->set_success(true);
+    reply->set_leaderid(leaderID);
+    reply->set_datavalue(value);
+    printResponse(reply);
+
+    std::cout << "Database:Exiting Get\n";
     return Status::OK;
   }
 
   Status Put(ServerContext* context, const DatabaseRequest* request, DatabaseResponse* reply) override {
     // Call put impl
     std::cout << "Database:Entering Put\n";
+    uint32_t commandID = request->sequenceid();
+    std::string key = request->datakey();
+    int value =  request->datavalue();
+    printRequest(request);
+    log.LogAppend(false /*isRead*/, key, value, commandID);
+   
+    // TODO: Branch next few things into separate thread
+    log.commitEntry(commandID);
+    value = log.executeEntry();
+    reply->set_success(true);
+    reply->set_leaderid(leaderID);
+    reply->set_datavalue(value);
+    printResponse(reply);
+    std::cout << "Database:Exiting Put\n";
     return Status::OK;
+  }
+
+  void printRequest(const DatabaseRequest* request) {
+      std::cout <<" Printing Request : \n";
+      std::cout << "SequenceID : " << request->sequenceid() << ", dataKey : " <<request->datakey() << ", dataValue : " << request->datavalue() << std::endl;
+  }
+
+  void printResponse(DatabaseResponse* reply) {
+      std::cout <<" Printing Response : \n";
+      std::cout << "success : " << reply->success() << ", leaderID : " <<reply->leaderid() << ", dataValue : " << reply->datavalue() << std::endl;
   }
 };
 
@@ -128,9 +179,9 @@ class RaftResponder final : public Raft::Service {
 
 
 void RunDatabase() {
-  std::string server_address("10.10.1.2:50051");
+  std::string server_address("10.10.1.3:50051");
 
-  DatabaseImpl service;
+  DatabaseImpl service(1);
 
   grpc::EnableDefaultHealthCheckService(true);
   grpc::reflection::InitProtoReflectionServerBuilderPlugin();
@@ -173,8 +224,8 @@ void RunRaft() {
 
 int main(int argc, char** argv) {
  
-//  RunDatabase();
-  RunRaft();
+  RunDatabase();
+//  RunRaft();
 
   return 0;
 }
