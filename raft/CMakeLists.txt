@@ -45,9 +45,9 @@ set(raft_grpc_srcs "${CMAKE_CURRENT_BINARY_DIR}/raft.grpc.pb.cc")
 set(raft_grpc_hdrs "${CMAKE_CURRENT_BINARY_DIR}/raft.grpc.pb.h")
 
 set(database_srcs "${CMAKE_CURRENT_BINARY_DIR}/../../../database/database.cc")
-set(database_hdrs "${CMAKE_CURRENT_BINARY_DIR}/../../../database/database.hh")
+set(database_hdrs "${CMAKE_CURRENT_BINARY_DIR}/../../../database/database.h")
 set(log_srcs "${CMAKE_CURRENT_BINARY_DIR}/../../../log/log.cc")
-set(log_hdrs "${CMAKE_CURRENT_BINARY_DIR}/../../../log/log.hh")
+set(log_hdrs "${CMAKE_CURRENT_BINARY_DIR}/../../../log/log.h")
 
 add_custom_command(
       OUTPUT "${database_proto_srcs}" "${database_proto_hdrs}" "${database_grpc_srcs}" "${database_grpc_hdrs}" "${raft_proto_srcs}" "${raft_proto_hdrs}" "${raft_grpc_srcs}" "${raft_grpc_hdrs}" "${database_srcs}" "${database_hdrs}" "${log_srcs}" "${log_hdrs}"

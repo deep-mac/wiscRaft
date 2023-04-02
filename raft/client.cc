@@ -96,10 +96,10 @@ int main(int argc, char** argv) {
 
   int value;
   // Commands go here
-  client.put("a", 10);
-  client.put("b", 15);
-  client.put("c", 20);
-  client.put("d", 25);
+//  client.put("a", 10);
+//  client.put("b", 15);
+//  client.put("c", 20);
+//  client.put("d", 25);
   value = client.get("b");
   std::cout << "b = " << value;
   value = client.get("d");
@@ -108,6 +108,10 @@ int main(int argc, char** argv) {
   std::cout << "a = " << value;
   value = client.get("c");
   std::cout << "c = " << value;
+  value = client.get("f");
+  std::cout << "f = " << value;
+  value = client.get("e");
+  std::cout << "e = " << value;
 
   return 0;
 }

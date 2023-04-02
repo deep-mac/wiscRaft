@@ -1,4 +1,4 @@
-#include"log.hh"
+#include"log.h"
 
 //Should be called atomically for each append
 void Log::LogAppend(LogEntry& entry){
