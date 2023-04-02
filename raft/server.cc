@@ -13,6 +13,7 @@
 #include "database.grpc.pb.h"
 #include "raft.grpc.pb.h"
 #endif
+#include <mutex>
 #include "log.h"
 
 using grpc::Channel;
@@ -33,8 +34,9 @@ class DatabaseImpl final : public Database::Service {
   Log log;
   uint32_t serverID;
   uint32_t leaderID;
+  std::mutex logLock;
 
-  DatabaseImpl(uint32_t id) {
+  DatabaseImpl(uint32_t id) : log() {
     serverID = id;
     //TODO: Change this. Add leader state
     leaderID = id;
@@ -47,11 +49,19 @@ class DatabaseImpl final : public Database::Service {
     std::string key = request->datakey();
     int value =  request->datavalue();
     printRequest(request);
+
+    logLock.lock();
     log.LogAppend(true /*isRead*/, key, value, commandID);
+    logLock.unlock();
    
     // TODO: Branch next few things into separate thread
     log.commitEntry(commandID);
+//    while () {
+//        std::this_thread::yield();
+//    }
     value = log.executeEntry();
+    log.LogCleanup();
+
     reply->set_success(true);
     reply->set_leaderid(leaderID);
     reply->set_datavalue(value);
@@ -68,11 +78,16 @@ class DatabaseImpl final : public Database::Service {
     std::string key = request->datakey();
     int value =  request->datavalue();
     printRequest(request);
+
+    logLock.lock();
     log.LogAppend(false /*isRead*/, key, value, commandID);
+    logLock.unlock();
    
-    // TODO: Branch next few things into separate thread
+    // TODO: Send AppendEntries and wait for receiving response
     log.commitEntry(commandID);
     value = log.executeEntry();
+    log.LogCleanup();
+
     reply->set_success(true);
     reply->set_leaderid(leaderID);
     reply->set_datavalue(value);

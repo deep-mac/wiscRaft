@@ -64,7 +64,6 @@ int Log::executeEntry() {
     } else {
     	ret = database.put(entry.key, entry.value);
     }
-    log.pop_front();
     commitID--;
     return ret;
 }

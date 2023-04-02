@@ -11,8 +11,8 @@ class LogDatabase {
     //How to have any data type as value
     //
     LogDatabase(){
-        std::fstream fh;
-        fh.open(fileName, std::fstream::app);
+        std::ifstream fh;
+        fh.open(fileName);
         std::string line;
         while(getline(fh, line)) {
             std::stringstream ss(line);
@@ -20,6 +20,7 @@ class LogDatabase {
             getline(ss, key, '$');
             getline(ss, value, '$');
             map[key] = stoi(value);
+	    std::cout << key << " : "<< value << "\n";
         }
         fh.close();
     }
