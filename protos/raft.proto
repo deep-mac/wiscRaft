@@ -20,8 +20,10 @@ message RaftRequest {
   bool isHeartbeat = 5;
   string logKey = 6;
   int32 logValue = 7;
-  uint32 leaderCommit = 8;
-  bool command = 9;
+  uint32 logTerm = 8;
+  uint32 logIdx = 9;
+  uint32 leaderCommit = 10;
+  bool command = 11;
 }
 
 message RaftReply {

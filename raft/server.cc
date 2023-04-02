@@ -15,6 +15,7 @@
 #endif
 #include <mutex>
 #include "log.h"
+#include "logExecute.h"
 
 using grpc::Channel;
 using grpc::Server;
@@ -54,14 +55,7 @@ class DatabaseImpl final : public Database::Service {
     log.LogAppend(true /*isRead*/, key, value, commandID);
     logLock.unlock();
    
-    // TODO: Branch next few things into separate thread
-    log.commitEntry(commandID);
-//    while () {
-//        std::this_thread::yield();
-//    }
-    value = log.executeEntry();
-    log.LogCleanup();
-
+    executeEntry(commandID, log.LastApplied, log.commitIdx, &log);
     reply->set_success(true);
     reply->set_leaderid(leaderID);
     reply->set_datavalue(value);
@@ -83,9 +77,7 @@ class DatabaseImpl final : public Database::Service {
     log.LogAppend(false /*isRead*/, key, value, commandID);
     logLock.unlock();
    
-    // TODO: Send AppendEntries and wait for receiving response
-    log.commitEntry(commandID);
-    value = log.executeEntry();
+    value = executeEntry(commandID, log.LastApplied, log.commitIdx, &log);
     log.LogCleanup();
 
     reply->set_success(true);

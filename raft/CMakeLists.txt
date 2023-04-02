@@ -48,9 +48,11 @@ set(database_srcs "${CMAKE_CURRENT_BINARY_DIR}/../../../database/database.cc")
 set(database_hdrs "${CMAKE_CURRENT_BINARY_DIR}/../../../database/database.h")
 set(log_srcs "${CMAKE_CURRENT_BINARY_DIR}/../../../log/log.cc")
 set(log_hdrs "${CMAKE_CURRENT_BINARY_DIR}/../../../log/log.h")
+set(execute_srcs "${CMAKE_CURRENT_BINARY_DIR}/../../logExecute.cc")
+set(execute_hdrs "${CMAKE_CURRENT_BINARY_DIR}/../../logExecute.h")
 
 add_custom_command(
-      OUTPUT "${database_proto_srcs}" "${database_proto_hdrs}" "${database_grpc_srcs}" "${database_grpc_hdrs}" "${raft_proto_srcs}" "${raft_proto_hdrs}" "${raft_grpc_srcs}" "${raft_grpc_hdrs}" "${database_srcs}" "${database_hdrs}" "${log_srcs}" "${log_hdrs}"
+      OUTPUT "${database_proto_srcs}" "${database_proto_hdrs}" "${database_grpc_srcs}" "${database_grpc_hdrs}" "${raft_proto_srcs}" "${raft_proto_hdrs}" "${raft_grpc_srcs}" "${raft_grpc_hdrs}" "${database_srcs}" "${database_hdrs}" "${log_srcs}" "${log_hdrs}" "${execute_srcs}" "${execute_hdrs}"
       COMMAND ${_PROTOBUF_PROTOC}
       ARGS --grpc_out "${CMAKE_CURRENT_BINARY_DIR}"
         --cpp_out "${CMAKE_CURRENT_BINARY_DIR}"
@@ -63,6 +65,7 @@ add_custom_command(
 include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 include_directories("${log_path}")
 include_directories("${database_path}")
+include_directories("{CMAKE_CURRENT_BINARY_DIR}/../../")
 
 # hw_grpc_proto
 add_library(grpc_proto
@@ -78,6 +81,8 @@ add_library(grpc_proto
   ${database_hdrs}
   ${log_srcs}
   ${log_hdrs}
+  ${execute_srcs}
+  ${execute_hdrs}
   )
 target_link_libraries(grpc_proto
   ${_REFLECTION}
