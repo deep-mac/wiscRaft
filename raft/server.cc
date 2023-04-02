@@ -13,7 +13,7 @@
 #include "database.grpc.pb.h"
 #include "raft.grpc.pb.h"
 #endif
-#include "log.hh"
+#include "log.h"
 
 using grpc::Channel;
 using grpc::Server;

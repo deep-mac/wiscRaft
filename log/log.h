@@ -26,6 +26,8 @@ class LogEntry{
   value = copy.value;
   commandID = copy.commandID;
  }
+
+ void setEntry(bool command, std::string newKey, int newValue, uint32_t newID);
 };
 
 class Log {
@@ -33,7 +35,7 @@ class Log {
  std::deque<LogEntry> log;
  std::fstream fh;
  uint32_t commitID;
- Database database;
+ LogDatabase database;
  public:
 
  Log() : database() {
@@ -42,6 +44,7 @@ class Log {
 
  //Should be called atomically for each append
  void LogAppend(LogEntry& Entry);
+ void LogAppend(bool command, std::string newKey, int newValue, uint32_t newID);
 
  //Should be called atomically once for every execute
  void LogCleanup();

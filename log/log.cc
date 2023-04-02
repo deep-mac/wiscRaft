@@ -75,26 +75,3 @@ void LogEntry::setEntry(bool command, std::string newKey, int newValue, uint32_t
     value = newValue;
     commandID = newID;
 }
-
-/*int main(){
-   LogEntry entry[4];
-   Log log;
-
-   entry[0].GetOrPut = false;
-   entry[2].GetOrPut = false;
-
-   for(int i=0; i<4; i++)
-    log.LogAppend(entry[i]);
-
-   //Do Execution here, do not pop.
-   LogEntry exec = log.get_head();
-   //Execute the entry based on conditions
-   log.print();
-
-   for(int i=0; i<4; i++)
-    log.LogCleanup();
-
-   log.print();
-
-   return 0;
-}*/

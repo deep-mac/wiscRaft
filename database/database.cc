@@ -1,4 +1,4 @@
-#include"database.hh"
+#include"database.h"
 #include <limits.h>
 
 void LogDatabase::printStore(){
