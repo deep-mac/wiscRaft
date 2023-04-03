@@ -135,40 +135,57 @@ class RaftResponder final : public Raft::Service {
          entry.command_id = request->logidx();
          bool is_heartbeat = request->isheartbeat();
          
-         raftObject->raftLock.lock(); 
-         if(term > raftObject->currentTerm){             //Wrong leader, turn him down!
+         raftObject->raftLock.lock();
+
+         if(term < raftObject->currentTerm){             //Wrong leader, turn him down!
+          raftObject->currentTerm = term;                //Update currentTerm to latest from the surprisingly new leader!
+
           raftObject->raftLock.unlock(); 
           reply->set_appendsuccess(false);
           reply->set_term(raftObject->currentTerm); 
         
           return Status::OK; 
          }
-         else{                            //Right leader, let's begin!
-          if(raftObject->log.get_tail().command_term == prevLogTerm && raftObject->log.get_tail().command_id == prevLogIndex){ //Log consistent, let's proceed!
-           raftObject->log.LogAppend(entry);
-        
-           raftObject->log.commitIdx = (leaderCommit < raftObject->log.nextIdx-1)?leaderCommit:(raftObject->log.nextIdx-1); //Setting the commitIdx on the follower
-           raftObject->raftLock.unlock();
-        
-           //Offloading the execution to the follower based on its convenience! Expected to execute until there is zero gap between LastApplied and commitIdx
-           int value;
-           std::thread execute_thread(executeEntry,std::ref(entry.command_term),std::ref(entry.command_id),std::ref(raftObject->log.LastApplied),std::ref(raftObject->log.commitIdx),std::ref(value),raftObject);
-           execute_thread.detach();
-          
+         else{                                                  //Right leader
+          raftObject->currentTerm = term;                       //Update currentTerm to latest from the surprisingly new leader, if term is different from our currentTerm!
+
+          if(raftObject->state == CANDIDATE)
+           raftObject->state = FOLLOWER;                        //Move to follower, because some other leader is up now
+
+          if(is_heartbeat == false){                            //Not a heartbeat, let's begin!
+           if(raftObject->log.get_tail().command_term == prevLogTerm && raftObject->log.get_tail().command_id == prevLogIndex){ //Log consistent, let's proceed!
+            raftObject->log.LogAppend(entry);
+         
+            raftObject->log.commitIdx = (leaderCommit < raftObject->log.nextIdx-1)?leaderCommit:(raftObject->log.nextIdx-1); //Setting the commitIdx on the follower
+            raftObject->raftLock.unlock();
+         
+            //Offloading the execution to the follower based on its convenience! Expected to execute until there is zero gap between LastApplied and commitIdx
+            int value;
+            std::thread execute_thread(executeEntry,std::ref(entry.command_term),std::ref(entry.command_id),std::ref(raftObject->log.LastApplied),std::ref(raftObject->log.commitIdx),std::ref(value),raftObject);
+            execute_thread.detach();
+           
+            reply->set_appendsuccess(true);
+            reply->set_term(raftObject->currentTerm); 
+         
+            return Status::OK;
+           }
+           else{ //Log inconsistent, turn down the request!
+            reply->set_appendsuccess(false);
+            reply->set_term(raftObject->currentTerm);
+            raftObject->log.LogCleanup();   //Pruning the log here!
+ 	   raftObject->log.PersistentLogCleanup(); //Pruning persistent log here
+            raftObject->raftLock.unlock();
+            
+            return Status::OK;
+           }
+         }
+         else{        //Proper heartbeat ack, your term is same as the leader term
+           raftObject->raftLock.unlock(); 
            reply->set_appendsuccess(true);
            reply->set_term(raftObject->currentTerm); 
-        
-           return Status::OK;
-          }
-          else{ //Log inconsistent, turn down the request!
-           reply->set_appendsuccess(false);
-           reply->set_term(raftObject->currentTerm);
-           raftObject->log.LogCleanup();   //Pruning the log here!
-	   raftObject->log.PersistentLogCleanup(); //Pruning persistent log here
-           raftObject->raftLock.unlock();
-           
-           return Status::OK;
-          }
+         
+           return Status::OK; 
+         }
         }
      }
 
