@@ -14,7 +14,7 @@ service Raft {
 
 message RaftRequest {
   uint32 term = 1;
-  uint32 serverID = 2;
+  uint32 leaderIdx = 2;
   uint32 prevLogIdx = 3;
   uint32 prevLogTerm = 4;
   bool isHeartbeat = 5;
