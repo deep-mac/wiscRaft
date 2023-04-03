@@ -85,134 +85,6 @@ class raftUtil {
         }
     }
 */
-//    void PeerThreadServer(){
-//      std::thread AppendEntryThread[3]; //2 Servers other than leader
-//      std::array<bool,3> matched;
-//    
-//      while(1){
-//        raftLock.lock();
-//        if(state == LEADER){
-//         raftLock.unlock();
-//    
-//         for(int i=0;i < 3; i++)
-//          if(i != serverIdx)
-//           AppendEntryThread[i] = std::thread(PeerAppendEntry,i,this,peerServers[i]);
-//    
-//         while(1){
-//          raftLock.lock();
-//          std::cout<<"Peer Server Master Thread locked"<<std::endl;
-//    
-//          if(log.get_size() > log.matchIdx-log.LastApplied){                     //Check for unmatched entries in the volatile log
-//           log.set_matched(log.matchIdx-log.LastApplied,serverIdx);             //Set Committed status for the leader server 
-//           matched = log.get_entry(log.matchIdx-log.LastApplied).matched;        //Read the matched status, no need for locks as no scope for race around, maybe double check?
-//           for(int i=0; i<3; i++)
-//            if(i != serverIdx && matched[i]){                                   //Check for majority, since we have only 3 servers, getting one other ack will give majority!
-//             log.matchIdx++;
-//             for(int j=0; j<log.get_size(); j++){                                         //Well, fun part here, checking if matched till last term, then commit (commit rule)
-//              LogEntry val = log.get_entry(j);
-//              if(val.command_term == currentTerm){
-//               if(log.matchIdx >= val.command_id){
-//                log.commitIdx++;
-//                log.persist_commitIdx();                                                
-//               }
-//               else
-//                break;
-//              }
-//             }
-//            }
-//    
-//           raftLock.unlock();
-//           std::cout<<"Peer Server Master Thread unlocked"<<std::endl;
-//          }
-//          else{
-//           raftLock.unlock();
-//           std::cout<<"Peer Server Master Thread unlocked"<<std::endl;
-//           std::this_thread::yield();
-//          }
-//         }
-//        }
-//        else{
-//         raftLock.unlock();
-//         std::this_thread::yield();
-//        }  
-//      }
-//    }
-    
-//    void PeerAppendEntry(int serverID, RaftRequester &channel){
-//     LogEntry prev_entry,entry;
-//     bool ret_resp;
-//     int ret_term;
-//     
-//     int start = log.nextIdx - 1;     //This variable is analogous to the nextIdx on the paper for each follower server 
-//     while(1){
-//      raftLock.lock();
-//      std::cout<<"Got the lock for peer append entry thread for server "<<serverID<<std::endl;
-//    
-//      if(start < log.nextIdx){
-//       if(start > log.LastApplied){                                 //Get from volatile log
-//        entry = log.get_entry(start-log.LastApplied-1);
-//        if(start > 1)
-//         prev_entry = log.get_entry(start-log.LastApplied-2);
-//       }
-//       else{
-//        entry = log.get_file_entry(start);
-//        if(start>1)
-//         prev_entry = log.get_file_entry(start-1);
-//       }
-//       raftLock.unlock();
-//    
-//       channel.AppendEntries(currentTerm,leaderIdx,prev_entry.command_id,prev_entry.command_term,entry.GetOrPut, entry.key, entry.value, entry.command_id, entry.command_term, log.commitIdx, false); //Call RPC
-//    
-//       raftLock.lock();
-//       if(ret_term < currentTerm){ //Have another leader, time to step down!
-//        state = FOLLOWER;
-//        raftLock.unlock();
-//        std::cout<<"Got the lock for peer append entry thread because of term violation for server "<<serverID<<std::endl;
-//        break;
-//       } 
-//    
-//       if(ret_resp == false)
-//        start--;
-//       else{
-//        log.set_matched(start-log.LastApplied-1,serverID);
-//        start++;
-//       }
-//       raftLock.unlock();
-//       std::cout<<"Lost the lock for peer append entry thread for server "<<serverID<<std::endl;
-//      }
-//      else{
-//       raftLock.unlock();
-//       std::this_thread::yield();
-//      }
-//     }
-//    } 
-
-//    void executeEntry(int &commandTerm, int &commandID, int &lastApplied, int &commitIdx, int &retValue) {
-//
-//    retValue = INT_MAX;
-//    while (1) {
-//	raftLock.lock();
-//	uint32_t logEntryIdx = commitIdx - lastApplied - 1;
-//        LogEntry head_entry = log.get_head();
-//	if ((logEntryIdx >=0) && (commandID == head_entry.command_id) && (commandTerm == head_entry.command_term)) {
-//
-//		assert(head_entry.command_id == commandID);
-//		assert(head_entry.command_term == commandTerm);
-//	        if (head_entry.GetOrPut) {
-//	            retValue = database.get(head_entry.key);
-//	        } else {
-//	            retValue = database.put(head_entry.key, head_entry.value);
-//	        }
-//
-//		log.LogCleanup();
-//		raftLock.unlock();
-//		break;
-//	} else {
-//	   raftLock.unlock();
-//	   std::this_thread::yield();
-//	}
-//    }
-//  }
 };
 
 void PeerAppendEntry(int serverID, raftUtil* raftObj, RaftRequester &channel){
@@ -319,7 +191,7 @@ void PeerThreadServer(raftUtil& raftObj){
               LogEntry val = raftObject->log.get_entry(j);
               if(val.command_term == raftObject->currentTerm){
                if(raftObject->log.matchIdx >= val.command_id){
-                raftObject->log.commitIdx++;
+                raftObject->log.commitIdx = raftObject->log.matchIdx;
                 raftObject->log.persist_commitIdx();                                                
                }
                else
