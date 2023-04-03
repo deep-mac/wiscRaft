@@ -166,6 +166,7 @@ class RaftResponder final : public Raft::Service {
            reply->set_term(raftObject->currentTerm);
            raftObject->raftLock.lock();
            raftObject->log.LogCleanup();   //Pruning the log here!
+	   //TODO: Prune persistent log after new leader election
            raftObject->raftLock.unlock();
            
            return Status::OK;
