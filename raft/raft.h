@@ -29,9 +29,7 @@ class raftUtil {
     std::mutex raftLock;
     Log log; //Log container doesn't exist
     LogDatabase database;
-//    std::vector<RaftRequester> peerServers = {RaftRequester(grpc::CreateChannel("", grpc::InsecureChannelCredentials())),RaftRequester(grpc::CreateChannel("", grpc::InsecureChannelCredentials())),RaftRequester(grpc::CreateChannel("", grpc::InsecureChannelCredentials()))};
     std::vector<RaftRequester> peerServers;
-//    peerServers.resize(3);
     std::map<int, std::string> peerServerIPs;
 
     raftUtil(uint32_t id) : log(), database() {//And probably many more args
@@ -45,10 +43,10 @@ class raftUtil {
         leaderIdx = -1;
         for (int i = 0; i < 3; ++i) {
 	   if (i != id) {
-  	       peerServers.push_back(RaftRequester(grpc::CreateChannel(peerServerIPs[i], grpc::InsecureChannelCredentials())));
+  	       peerServers.push_back(std::move(RaftRequester(grpc::CreateChannel(peerServerIPs[i], grpc::InsecureChannelCredentials()))));
 	   }
            else
-  	       peerServers.push_back(RaftRequester(grpc::CreateChannel("", grpc::InsecureChannelCredentials())));
+  	       peerServers.push_back(std::move(RaftRequester(grpc::CreateChannel(peerServerIPs[i], grpc::InsecureChannelCredentials()))));
         }
     }
 
