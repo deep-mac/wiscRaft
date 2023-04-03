@@ -1,6 +1,7 @@
 #pragma once
 
 #include<iostream>
+#include<vector>
 #include<deque>
 #include<string>
 #include<array>
@@ -52,7 +53,7 @@ class Log{
    LastApplied = 0;
    fin.open("applied.txt",std::fstream::in);
    std::string line;
-   if(getline(fin,line))
+   if(getline(fin,line,'\n'))
     LastApplied = stoi(line);
    fin.close();
   
@@ -87,7 +88,7 @@ class Log{
    commitIdx = 0;
    matchIdx = 0;
    fin.open("commit.txt",std::fstream::in);
-   if(getline(fin,line)){
+   if(getline(fin,line,'\n')){
     commitIdx = stoi(line);
     matchIdx = commitIdx;
    }
@@ -122,6 +123,23 @@ class Log{
    }
    fout.close();
    */
+ }
+
+ //Used to clean the persistent log entry, should be done atomically
+ void PersistentLogCleanup(){
+   std::vector<std::string> vec;
+   std::string line;
+   int i;
+
+   fin.open("log.txt",std::fstream::in);
+   for(i=0; getline(fin,line); i++)
+    vec.push_back(line);
+   fin.close();
+
+   fout.open("log.txt",std::fstream::trunc);
+   for(int j=0; j<i-1; j++)
+    fout<<vec[j];
+   fout.close();
  }
 
  //Used to get the head for execution

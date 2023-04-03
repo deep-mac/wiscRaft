@@ -87,7 +87,7 @@ class DatabaseImpl final : public Database::Service {
      raftObject->raftLock.unlock();
      return Status::OK;
     }
-    entry.GetOrPut = 1;
+    entry.GetOrPut = 0;
     entry.key = key;
     entry.value = value;
     entry.command_id = raftObject->log.nextIdx;
@@ -96,7 +96,6 @@ class DatabaseImpl final : public Database::Service {
     raftObject->raftLock.unlock();
    
     executeEntry(raftObject->currentTerm,raftObject->log.nextIdx, raftObject->log.LastApplied, raftObject->log.commitIdx, value, raftObject);
-    raftObject->log.LogCleanup();
 
     reply->set_success(true);
     reply->set_leaderid(raftObject->leaderIdx);
@@ -166,7 +165,7 @@ class RaftResponder final : public Raft::Service {
            reply->set_term(raftObject->currentTerm);
            raftObject->raftLock.lock();
            raftObject->log.LogCleanup();   //Pruning the log here!
-	   //TODO: Prune persistent log after new leader election
+	   raftObject->log.PersistentLogCleanup(); //Pruning persistent log here
            raftObject->raftLock.unlock();
            
            return Status::OK;
