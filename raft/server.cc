@@ -163,7 +163,6 @@ class RaftResponder final : public Raft::Service {
           else{ //Log inconsistent, turn down the request!
            reply->set_appendsuccess(false);
            reply->set_term(raftObject->currentTerm);
-           raftObject->raftLock.lock();
            raftObject->log.LogCleanup();   //Pruning the log here!
 	   raftObject->log.PersistentLogCleanup(); //Pruning persistent log here
            raftObject->raftLock.unlock();
