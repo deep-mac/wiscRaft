@@ -52,7 +52,7 @@ class RaftRequester {
 	  lastLogTerm(0) {
     }
 
-    void AppendEntries(uint32_t currentTerm, uint32_t leaderIdx, uint32_t prevLogIdx, uint32_t prevLogTerm, bool command, std::string key, int value, uint32_t commandIdx, uint32_t commandTerm, uint32_t leaderCommit, bool isHeartbeat) {
+    bool AppendEntries(uint32_t currentTerm, uint32_t leaderIdx, uint32_t prevLogIdx, uint32_t prevLogTerm, bool command, std::string key, int value, uint32_t commandIdx, uint32_t commandTerm, uint32_t leaderCommit, bool isHeartbeat, uint32_t retTerm, bool isSuccess) {
         RaftRequest request;
         request.set_command(command);
 	request.set_logkey(key);
@@ -71,13 +71,14 @@ class RaftRequester {
 	ClientContext context;
 
 	Status status = stub_->AppendEntries(&context, request, &reply);
-
+	retTerm = reply.term();
+	isSuccess = reply.appendsuccess();
 	if (status.ok()) {
-	  return;
+	  return true;
 	} else {
 	  std::cout << status.error_code() << 
 ": " << status.error_message() << std::endl;
-	  return;
+	  return false;
 	}
     }
 

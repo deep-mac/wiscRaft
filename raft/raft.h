@@ -39,8 +39,8 @@ class raftUtil {
 
         serverIdx = id;
         currentTerm = 0;
-        state = FOLLOWER;
-        leaderIdx = -1;
+        state = LEADER;
+        leaderIdx = 0;
         for (int i = 0; i < 3; ++i) {
 	   if (i != id) {
   	       peerServers.push_back(std::move(RaftRequester(grpc::CreateChannel(peerServerIPs[i], grpc::InsecureChannelCredentials()))));
@@ -98,6 +98,7 @@ void PeerAppendEntry(int serverID, raftUtil* raftObj, RaftRequester &channel){
 //  std::cout<<"Got the lock for peer append entry thread for server "<<serverID<<std::endl;
 
   if(start < raftObj->log.nextIdx && start != 0){
+
    if(start > raftObj->log.LastApplied){                                 //Get from volatile log
     entry = raftObj->log.get_entry(start - raftObj->log.LastApplied - 1);
     if(start > 1)
@@ -110,8 +111,11 @@ void PeerAppendEntry(int serverID, raftUtil* raftObj, RaftRequester &channel){
    }
    raftObj->raftLock.unlock();
 
-   channel.AppendEntries(raftObj->currentTerm,raftObj->leaderIdx,prev_entry.command_id,prev_entry.command_term,entry.GetOrPut, entry.key, entry.value, entry.command_id, entry.command_term, raftObj->log.commitIdx, false); //Call RPC
-
+   bool rpc_status = channel.AppendEntries(raftObj->currentTerm,raftObj->leaderIdx,prev_entry.command_id,prev_entry.command_term,entry.GetOrPut, entry.key, entry.value, entry.command_id, entry.command_term, raftObj->log.commitIdx, false, ret_term, ret_resp); //Call RPC
+   if (rpc_status == false) {
+     printf("RPC Failed\n");
+     continue;
+   }
    raftObj->raftLock.lock();
    if(ret_term < raftObj->currentTerm){ //Have another leader, time to step down!
     raftObj->state = FOLLOWER;
@@ -144,7 +148,7 @@ void executeEntry(int &commandTerm, int &commandID, int &lastApplied, int &commi
   retValue = INT_MAX;
   while (1) {
       raftObject->raftLock.lock();
-      uint32_t logEntryIdx = raftObject->log.commitIdx - raftObject->log.LastApplied - 1;
+      int32_t logEntryIdx = raftObject->log.commitIdx - raftObject->log.LastApplied - 1;
       LogEntry head_entry = raftObject->log.get_head();
 //     std::cout << logEntryIdx <<" , " << commandID << " , " << head_entry.command_id << " , " << commandTerm << " , " << head_entry.command_term << std::endl;
       if ((logEntryIdx >=0) && (commandID == head_entry.command_id) && (commandTerm == head_entry.command_term)) {
