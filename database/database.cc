@@ -26,17 +26,21 @@ void LogDatabase::persist(){
 }
 
 int LogDatabase::get(std::string key){
-    std::ifstream f_in(fileName);
-    std::string line;
-    std::string delimiter("$");
-
-    while(getline(f_in, line)) {
-	std::string storedKey = line.substr(0, line.find(delimiter));
-	std::string storedValue = line.substr(line.find(delimiter)+1);
-	if (key == storedKey) {
-	    return stoi(storedValue);
-	}
+//    std::ifstream f_in(fileName);
+//    std::string line;
+//    std::string delimiter("$");
+//
+//    while(getline(f_in, line)) {
+//	std::string storedKey = line.substr(0, line.find(delimiter));
+//	std::string storedValue = line.substr(line.find(delimiter)+1);
+//	if (key == storedKey) {
+//	    return stoi(storedValue);
+//	}
+//    }
+//
+//    return INT_MAX;
+    if (map.find(key) == map.end()) {
+        return INT_MAX;
     }
-
-    return INT_MAX;
+    return map[key];
 }

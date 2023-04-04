@@ -143,7 +143,9 @@ void executeEntry(int &commandTerm, int &commandID, int &lastApplied, int &commi
       raftObject->raftLock.lock();
       uint32_t logEntryIdx = raftObject->log.commitIdx - raftObject->log.LastApplied - 1;
       LogEntry head_entry = raftObject->log.get_head();
+     std::cout << logEntryIdx <<" , " << commandID << " , " << head_entry.command_id << " , " << commandTerm << " , " << head_entry.command_term << std::endl;
       if ((logEntryIdx >=0) && (commandID == head_entry.command_id) && (commandTerm == head_entry.command_term)) {
+ 	std::cout << "Here\n";
 
       	assert(head_entry.command_id == commandID);
       	assert(head_entry.command_term == commandTerm);

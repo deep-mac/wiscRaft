@@ -97,6 +97,7 @@ class Log{
 
  //Should be called atomically for each append
  void LogAppend(LogEntry& Entry){
+   std::cout << "Log::Entering LogAppend\n";
    log.push_back(Entry);
    nextIdx++;
    fout.open("log.txt",std::fstream::app);

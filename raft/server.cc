@@ -60,7 +60,7 @@ class DatabaseImpl final : public Database::Service {
     raftObject->log.LogAppend(entry);
     raftObject->raftLock.unlock();
    
-    executeEntry(raftObject->currentTerm ,raftObject->log.nextIdx, raftObject->log.LastApplied, raftObject->log.commitIdx, value,raftObject);
+    executeEntry(raftObject->currentTerm ,entry.command_id, raftObject->log.LastApplied, raftObject->log.commitIdx, value,raftObject);
     reply->set_success(true);
     reply->set_leaderid(raftObject->leaderIdx);
     reply->set_datavalue(value);
@@ -95,7 +95,7 @@ class DatabaseImpl final : public Database::Service {
     raftObject->log.LogAppend(entry);
     raftObject->raftLock.unlock();
    
-    executeEntry(raftObject->currentTerm,raftObject->log.nextIdx, raftObject->log.LastApplied, raftObject->log.commitIdx, value, raftObject);
+    executeEntry(raftObject->currentTerm,entry.command_id, raftObject->log.LastApplied, raftObject->log.commitIdx, value, raftObject);
 
     reply->set_success(true);
     reply->set_leaderid(raftObject->leaderIdx);
@@ -264,10 +264,10 @@ int main(int argc, char** argv) {
   std::cout <<" This server's ID = " << serverIdx << std::endl;
 
   raftUtil raft(serverIdx);
+  raft.state = LEADER;
   std::thread peerThread(PeerThreadServer, std::ref(raft)); 
   std::thread databaseThread(RunDatabase, serverIdx, std::ref(raft));
   std::thread raftThread(RunRaft, serverIdx, std::ref(raft));
- 
   raftThread.join();
   databaseThread.join();
   peerThread.join();
