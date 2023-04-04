@@ -39,8 +39,8 @@ class raftUtil {
 
         serverIdx = id;
         currentTerm = 0;
-        state = LEADER;
-        leaderIdx = 0;
+        state = FOLLOWER;
+        leaderIdx = -1;
         for (int i = 0; i < 3; ++i) {
 	   if (i != id) {
   	       peerServers.push_back(std::move(RaftRequester(grpc::CreateChannel(peerServerIPs[i], grpc::InsecureChannelCredentials()))));
