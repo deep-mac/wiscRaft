@@ -97,7 +97,7 @@ void PeerAppendEntry(int serverID, raftUtil* raftObj, RaftRequester &channel){
   raftObj->raftLock.lock();
   std::cout<<"Got the lock for peer append entry thread for server "<<serverID<<std::endl;
 
-  if(start < raftObj->log.nextIdx){
+  if(start < raftObj->log.nextIdx && start != 0){
    if(start > raftObj->log.LastApplied){                                 //Get from volatile log
     entry = raftObj->log.get_entry(start - raftObj->log.LastApplied - 1);
     if(start > 1)
@@ -130,6 +130,9 @@ void PeerAppendEntry(int serverID, raftUtil* raftObj, RaftRequester &channel){
    std::cout<<"Lost the lock for peer append entry thread for server "<<serverID<<std::endl;
   }
   else{
+   if(start == 0)
+    start = raftObj->nextIdx - 1;
+
    raftObj->raftLock.unlock();
    std::this_thread::yield();
   }

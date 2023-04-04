@@ -153,7 +153,7 @@ class RaftResponder final : public Raft::Service {
            raftObject->state = FOLLOWER;                        //Move to follower, because some other leader is up now
 
           if(is_heartbeat == false){                            //Not a heartbeat, let's begin!
-           if(raftObject->log.get_tail().command_term == prevLogTerm && raftObject->log.get_tail().command_id == prevLogIndex){ //Log consistent, let's proceed!
+           if((raftObject->log.get_tail().command_term == prevLogTerm && raftObject->log.get_tail().command_id == prevLogIndex) || entry.command_id == 1 /*First command, ignore*/){ //Log consistent, let's proceed!
             raftObject->log.LogAppend(entry);
          
             raftObject->log.commitIdx = (leaderCommit < raftObject->log.nextIdx-1)?leaderCommit:(raftObject->log.nextIdx-1); //Setting the commitIdx on the follower
@@ -173,7 +173,7 @@ class RaftResponder final : public Raft::Service {
             reply->set_appendsuccess(false);
             reply->set_term(raftObject->currentTerm);
             raftObject->log.LogCleanup();   //Pruning the log here!
- 	   raftObject->log.PersistentLogCleanup(); //Pruning persistent log here
+ 	    raftObject->log.PersistentLogCleanup(); //Pruning persistent log here
             raftObject->raftLock.unlock();
             
             return Status::OK;
