@@ -131,7 +131,7 @@ void PeerAppendEntry(int serverID, raftUtil* raftObj, RaftRequester &channel){
   }
   else{
    if(start == 0)
-    start = raftObj->nextIdx - 1;
+    start = raftObj->log.nextIdx - 1;
 
    raftObj->raftLock.unlock();
    std::this_thread::yield();
