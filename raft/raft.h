@@ -33,9 +33,9 @@ class raftUtil {
     std::map<int, std::string> peerServerIPs;
 
     raftUtil(uint32_t id) : log(), database() {//And probably many more args
-        peerServerIPs[0] = "10.10.1.1:50051";
-        peerServerIPs[1] = "10.10.1.2:50051";
-        peerServerIPs[2] = "10.10.1.3:50051";
+        peerServerIPs[0] = "10.10.1.1:4096";
+        peerServerIPs[1] = "10.10.1.2:4096";
+        peerServerIPs[2] = "10.10.1.3:4096";
 
         serverIdx = id;
         currentTerm = 0;
@@ -95,7 +95,7 @@ void PeerAppendEntry(int serverID, raftUtil* raftObj, RaftRequester &channel){
  int start = raftObj->log.nextIdx - 1;     //This variable is analogous to the nextIdx on the paper for each follower server 
  while(1){
   raftObj->raftLock.lock();
-  std::cout<<"Got the lock for peer append entry thread for server "<<serverID<<std::endl;
+//  std::cout<<"Got the lock for peer append entry thread for server "<<serverID<<std::endl;
 
   if(start < raftObj->log.nextIdx && start != 0){
    if(start > raftObj->log.LastApplied){                                 //Get from volatile log
@@ -116,7 +116,7 @@ void PeerAppendEntry(int serverID, raftUtil* raftObj, RaftRequester &channel){
    if(ret_term < raftObj->currentTerm){ //Have another leader, time to step down!
     raftObj->state = FOLLOWER;
     raftObj->raftLock.unlock();
-    std::cout<<"Got the lock for peer append entry thread because of term violation for server "<<serverID<<std::endl;
+//    std::cout<<"Got the lock for peer append entry thread because of term violation for server "<<serverID<<std::endl;
     break;
    } 
 
@@ -127,7 +127,7 @@ void PeerAppendEntry(int serverID, raftUtil* raftObj, RaftRequester &channel){
     start++;
    }
    raftObj->raftLock.unlock();
-   std::cout<<"Lost the lock for peer append entry thread for server "<<serverID<<std::endl;
+//   std::cout<<"Lost the lock for peer append entry thread for server "<<serverID<<std::endl;
   }
   else{
    if(start == 0)
@@ -146,7 +146,7 @@ void executeEntry(int &commandTerm, int &commandID, int &lastApplied, int &commi
       raftObject->raftLock.lock();
       uint32_t logEntryIdx = raftObject->log.commitIdx - raftObject->log.LastApplied - 1;
       LogEntry head_entry = raftObject->log.get_head();
-     std::cout << logEntryIdx <<" , " << commandID << " , " << head_entry.command_id << " , " << commandTerm << " , " << head_entry.command_term << std::endl;
+//     std::cout << logEntryIdx <<" , " << commandID << " , " << head_entry.command_id << " , " << commandTerm << " , " << head_entry.command_term << std::endl;
       if ((logEntryIdx >=0) && (commandID == head_entry.command_id) && (commandTerm == head_entry.command_term)) {
  	std::cout << "Here\n";
 
@@ -184,7 +184,7 @@ void PeerThreadServer(raftUtil& raftObj){
     
          while(1){
           raftObject->raftLock.lock();
-          std::cout<<"Peer Server Master Thread locked"<<std::endl;
+//          std::cout<<"Peer Server Master Thread locked"<<std::endl;
     
           if(raftObject->log.get_size() > raftObject->log.matchIdx - raftObject->log.LastApplied){                     //Check for unmatched entries in the volatile log
            raftObject->log.set_matched(raftObject->log.matchIdx-raftObject->log.LastApplied,raftObject->serverIdx);             //Set Committed status for the leader server 
@@ -206,11 +206,11 @@ void PeerThreadServer(raftUtil& raftObj){
             }
     
            raftObject->raftLock.unlock();
-           std::cout<<"Peer Server Master Thread unlocked"<<std::endl;
+//           std::cout<<"Peer Server Master Thread unlocked"<<std::endl;
           }
           else{
            raftObject->raftLock.unlock();
-           std::cout<<"Peer Server Master Thread unlocked"<<std::endl;
+//           std::cout<<"Peer Server Master Thread unlocked"<<std::endl;
            std::this_thread::yield();
           }
          }

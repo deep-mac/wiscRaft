@@ -232,9 +232,9 @@ void RunRaft(uint32_t serverIdx, raftUtil& raftObject) {
   service.raftObject = &raftObject;
   std::string server_address;
   switch (serverIdx) {
-    case 0 : server_address = "10.10.1.1:50051"; break;
-    case 1 : server_address = "10.10.1.2:50051"; break;
-    case 2 : server_address = "10.10.1.3:50051"; break;
+    case 0 : server_address = "10.10.1.1:4096"; break;
+    case 1 : server_address = "10.10.1.2:4096"; break;
+    case 2 : server_address = "10.10.1.3:4096"; break;
     default : std::cout << "Illegal serverIdx. Exiting!" << std::endl; break;
   }
   grpc::EnableDefaultHealthCheckService(true);

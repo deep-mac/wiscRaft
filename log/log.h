@@ -24,6 +24,19 @@ class LogEntry{
    matched[i] = false;
  }
 
+ LogEntry& operator=(const LogEntry& copy){
+
+  GetOrPut = copy.GetOrPut;
+  key = copy.key;
+  value = copy.value;
+  command_id = copy.command_id;
+  command_term = copy.command_term;
+  client_id = copy.client_id;
+  matched = copy.matched; 
+
+  return *this; 
+ }
+
  LogEntry(const LogEntry& copy){
   GetOrPut = copy.GetOrPut;
   key = copy.key;
