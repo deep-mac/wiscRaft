@@ -96,8 +96,9 @@ void PeerAppendEntry(int serverID, raftUtil* raftObj, RaftRequester &channel){
  while(1){
   raftObj->raftLock.lock();
 //  std::cout<<"Got the lock for peer append entry thread for server "<<serverID<<std::endl;
-
   if(start < raftObj->log.nextIdx && start != 0){
+
+  printf("Line : %d\n", __LINE__);
 
    if(start > raftObj->log.LastApplied){                                 //Get from volatile log
     entry = raftObj->log.get_entry(start - raftObj->log.LastApplied - 1);
@@ -115,6 +116,8 @@ void PeerAppendEntry(int serverID, raftUtil* raftObj, RaftRequester &channel){
    if (rpc_status == false) {
      printf("RPC Failed\n");
      continue;
+   } else {
+     printf("RPC Success for %d\n", serverID);
    }
    raftObj->raftLock.lock();
    if(ret_term < raftObj->currentTerm){ //Have another leader, time to step down!
@@ -124,9 +127,14 @@ void PeerAppendEntry(int serverID, raftUtil* raftObj, RaftRequester &channel){
     break;
    } 
 
-   if(ret_resp == false)
+   if(ret_resp == false) {
     start--;
+  printf("Line : %d\n", __LINE__);
+
+   }
    else{
+  printf("Line : %d\n", __LINE__);
+
     raftObj->log.set_matched(start - raftObj->log.LastApplied - 1,serverID);
     start++;
    }
@@ -151,6 +159,7 @@ void executeEntry(int &commandTerm, int &commandID, int &lastApplied, int &commi
       raftObject->raftLock.lock();
       int32_t logEntryIdx = raftObject->log.commitIdx - raftObject->log.LastApplied - 1;
       LogEntry head_entry = raftObject->log.get_head();
+//     std::cout << logEntryIdx <<" , " << commandID << " , " << head_entry.command_id << " , " << commandTerm << " , " << head_entry.command_term << std::endl;
       if ((logEntryIdx >=0) && (commandID == head_entry.command_id) && (commandTerm == head_entry.command_term)) {
  	std::cout << "Here\n";
 

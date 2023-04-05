@@ -52,7 +52,7 @@ class RaftRequester {
 	  lastLogTerm(0) {
     }
 
-    bool AppendEntries(uint32_t currentTerm, uint32_t leaderIdx, uint32_t prevLogIdx, uint32_t prevLogTerm, bool command, std::string key, int value, uint32_t commandIdx, uint32_t commandTerm, uint32_t leaderCommit, bool isHeartbeat, uint32_t retTerm, bool isSuccess) {
+    bool AppendEntries(uint32_t currentTerm, uint32_t leaderIdx, uint32_t prevLogIdx, uint32_t prevLogTerm, bool command, std::string key, int value, uint32_t commandIdx, uint32_t commandTerm, uint32_t leaderCommit, bool isHeartbeat, int &retTerm, bool &isSuccess) {
         RaftRequest request;
         request.set_command(command);
 	request.set_logkey(key);
@@ -65,7 +65,7 @@ class RaftRequester {
 	request.set_logterm(commandTerm);
 	request.set_logidx(commandIdx);
 	request.set_leadercommit(leaderCommit);
-
+	printf("Our CIdx : %d, Sent CIdx : %d\n", commandIdx, request.logidx());
 	RaftReply reply;
 
 	ClientContext context;
