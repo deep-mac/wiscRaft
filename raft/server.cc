@@ -127,14 +127,13 @@ class RaftResponder final : public Raft::Service {
          uint32_t prevLogIndex = request->prevlogidx();
          uint32_t prevLogTerm = request->prevlogterm();
          uint32_t leaderCommit = request->leadercommit();
-         LogEntry entry;
-         entry.GetOrPut = (request->command() == true)?1:0; //1 - Get, 0 - Put
-         entry.key = request->logkey();
-         entry.value = request->logvalue();
-         entry.command_term = request->logterm();
-         entry.command_id = request->logidx();
+         LogEntry *entry = new LogEntry;
+         entry->GetOrPut = (request->command() == true)?1:0; //1 - Get, 0 - Put
+         entry->key = request->logkey();
+         entry->value = request->logvalue();
+         entry->command_term = request->logterm();
+         entry->command_id = request->logidx();
          bool is_heartbeat = request->isheartbeat();
-         
          raftObject->raftLock.lock();
 
          if(term < raftObject->currentTerm){             //Wrong leader, turn him down!
@@ -153,20 +152,21 @@ class RaftResponder final : public Raft::Service {
            raftObject->state = FOLLOWER;                        //Move to follower, because some other leader is up now
 
           if(is_heartbeat == false){                            //Not a heartbeat, let's begin!
-           if((raftObject->log.get_tail().command_term == prevLogTerm && raftObject->log.get_tail().command_id == prevLogIndex) || entry.command_id == 1 /*First command, ignore*/){ //Log consistent, let's proceed!
-            raftObject->log.LogAppend(entry);
+           if((raftObject->log.get_tail().command_term == prevLogTerm && raftObject->log.get_tail().command_id == prevLogIndex) || entry->command_id == 1 /*First command, ignore*/){ //Log consistent, let's proceed!
+            raftObject->log.LogAppend(*entry);
          
             raftObject->log.commitIdx = (leaderCommit < raftObject->log.nextIdx-1)?leaderCommit:(raftObject->log.nextIdx-1); //Setting the commitIdx on the follower
             raftObject->raftLock.unlock();
-         
+
+            std::cout<<"leadercommit and follower commit"<<leaderCommit<<" "<<raftObject->log.commitIdx<<std::endl;	    
             //Offloading the execution to the follower based on its convenience! Expected to execute until there is zero gap between LastApplied and commitIdx
             int value;
-            std::thread execute_thread(executeEntry,std::ref(entry.command_term),std::ref(entry.command_id),std::ref(raftObject->log.LastApplied),std::ref(raftObject->log.commitIdx),std::ref(value),raftObject);
+            std::thread execute_thread(executeEntry,std::ref(entry->command_term),std::ref(entry->command_id),std::ref(raftObject->log.LastApplied),std::ref(raftObject->log.commitIdx),std::ref(value),raftObject);
             execute_thread.detach();
            
             reply->set_appendsuccess(true);
             reply->set_term(raftObject->currentTerm); 
-         
+            delete entry;
             return Status::OK;
            }
            else{ //Log inconsistent, turn down the request!
@@ -175,7 +175,7 @@ class RaftResponder final : public Raft::Service {
             raftObject->log.LogCleanup();   //Pruning the log here!
  	    raftObject->log.PersistentLogCleanup(); //Pruning persistent log here
             raftObject->raftLock.unlock();
-            
+            delete entry;
             return Status::OK;
            }
          }
@@ -183,7 +183,7 @@ class RaftResponder final : public Raft::Service {
            raftObject->raftLock.unlock(); 
            reply->set_appendsuccess(true);
            reply->set_term(raftObject->currentTerm); 
-         
+           delete entry;
            return Status::OK; 
          }
         }
@@ -264,7 +264,6 @@ int main(int argc, char** argv) {
   std::cout <<" This server's ID = " << serverIdx << std::endl;
 
   raftUtil raft(serverIdx);
-  raft.state = LEADER;
   std::thread peerThread(PeerThreadServer, std::ref(raft)); 
   std::thread databaseThread(RunDatabase, serverIdx, std::ref(raft));
   std::thread raftThread(RunRaft, serverIdx, std::ref(raft));

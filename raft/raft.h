@@ -146,11 +146,11 @@ void PeerAppendEntry(int serverID, raftUtil* raftObj, RaftRequester &channel){
 void executeEntry(int &commandTerm, int &commandID, int &lastApplied, int &commitIdx, int &retValue, raftUtil* raftObject) {
 
   retValue = INT_MAX;
+      std::cout  <<" , " << commandID << " , " << commandTerm << std::endl;
   while (1) {
       raftObject->raftLock.lock();
       int32_t logEntryIdx = raftObject->log.commitIdx - raftObject->log.LastApplied - 1;
       LogEntry head_entry = raftObject->log.get_head();
-//     std::cout << logEntryIdx <<" , " << commandID << " , " << head_entry.command_id << " , " << commandTerm << " , " << head_entry.command_term << std::endl;
       if ((logEntryIdx >=0) && (commandID == head_entry.command_id) && (commandTerm == head_entry.command_term)) {
  	std::cout << "Here\n";
 
