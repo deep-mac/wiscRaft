@@ -121,6 +121,7 @@ class Log{
 
  //Should be called atomically once for every execute
  void LogCleanup(){
+   std::cout<<"Log Applied!"<<std::endl;
    log.pop_front();
    LastApplied++;
 
@@ -172,7 +173,7 @@ class Log{
  }
 
  //Used to get the entry from file log
- LogEntry& get_file_entry(int idx){
+ LogEntry get_file_entry(int idx){
   LogEntry copy;
   std::string line;
 

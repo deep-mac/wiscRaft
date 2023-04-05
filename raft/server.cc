@@ -156,17 +156,20 @@ class RaftResponder final : public Raft::Service {
             raftObject->log.LogAppend(*entry);
          
             raftObject->log.commitIdx = (leaderCommit < raftObject->log.nextIdx-1)?leaderCommit:(raftObject->log.nextIdx-1); //Setting the commitIdx on the follower
+	    raftObject->log.persist_commitIdx();
             raftObject->raftLock.unlock();
 
             std::cout<<"leadercommit and follower commit"<<leaderCommit<<" "<<raftObject->log.commitIdx<<std::endl;	    
             //Offloading the execution to the follower based on its convenience! Expected to execute until there is zero gap between LastApplied and commitIdx
-            int value;
-            std::thread execute_thread(executeEntry,std::ref(entry->command_term),std::ref(entry->command_id),std::ref(raftObject->log.LastApplied),std::ref(raftObject->log.commitIdx),std::ref(value),raftObject);
+            int *value;
+	    value = new int;
+            std::thread execute_thread(executeEntry,entry->command_term,entry->command_id,std::ref(raftObject->log.LastApplied),std::ref(raftObject->log.commitIdx),std::ref(*value),raftObject);
             execute_thread.detach();
            
             reply->set_appendsuccess(true);
             reply->set_term(raftObject->currentTerm); 
             delete entry;
+	    delete value;
             return Status::OK;
            }
            else{ //Log inconsistent, turn down the request!
