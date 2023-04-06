@@ -166,9 +166,9 @@ void executeEntry(int commandTerm, int commandID, int &lastApplied, int &commitI
       	assert(head_entry.command_id == commandID);
       	assert(head_entry.command_term == commandTerm);
               if (head_entry.GetOrPut) {
-                 int ret = raftObject->database.get(head_entry.key);
+                 retValue = raftObject->database.get(head_entry.key);
               } else {
-                 int ret = raftObject->database.put(head_entry.key, head_entry.value);
+                 retValue = raftObject->database.put(head_entry.key, head_entry.value);
               }
 
       	raftObject->log.LogCleanup();
