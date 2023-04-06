@@ -157,6 +157,12 @@ void executeEntry(int commandTerm, int commandID, int &lastApplied, int &commitI
       std::cout<< commandID << " , " << commandTerm << ","<<raftObject->log.LastApplied << std::endl;
   while (1) {
       raftObject->raftLock.lock();
+
+      if (raftObject->log.get_size() == 0) {   //This condition fires when an extraneous thread runs after a pruned log entry
+ 	 raftObject->raftLock.unlock();
+	 return;
+      }
+
       int32_t logEntryIdx = raftObject->log.commitIdx - raftObject->log.LastApplied - 1;
       LogEntry head_entry = raftObject->log.get_head();
       //std::cout << logEntryIdx <<" , " << commandID << " , " << head_entry.command_id << " , " << commandTerm << " , " << head_entry.command_term << std::endl;
@@ -166,9 +172,17 @@ void executeEntry(int commandTerm, int commandID, int &lastApplied, int &commitI
       	assert(head_entry.command_id == commandID);
       	assert(head_entry.command_term == commandTerm);
               if (head_entry.GetOrPut) {
-                 retValue = raftObject->database.get(head_entry.key);
+                 if (raftObject->state == LEADER) {
+                     retValue = raftObject->database.get(head_entry.key);
+		 } else {
+		     int ret = raftObject->database.get(head_entry.key);
+                 }
               } else {
-                 retValue = raftObject->database.put(head_entry.key, head_entry.value);
+                 if (raftObject->state == LEADER) {
+                    retValue = raftObject->database.put(head_entry.key, head_entry.value);
+		 } else {
+		    int ret = raftObject->database.put(head_entry.key, head_entry.value);
+		 }
               }
 
       	raftObject->log.LogCleanup();
