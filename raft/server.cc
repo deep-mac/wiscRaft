@@ -31,247 +31,297 @@ using raft::RaftReply;
 using raft::RaftRequest;
 
 class DatabaseImpl final : public Database::Service {
-  public:
-  raftUtil* raftObject;
+    public:
+        raftUtil* raftObject;
 
-  Status Get(ServerContext* context, const DatabaseRequest* request, DatabaseResponse* reply) override {
-    // Call get impl
-    std::cout << "Database:Entering Get\n";
-    std::string key = request->datakey();
-    int value =  request->datavalue();
-    printRequest(request);
+        Status Get(ServerContext* context, const DatabaseRequest* request, DatabaseResponse* reply) override {
+            // Call get impl
+            std::cout << "Database:Entering Get\n";
+            std::string key = request->datakey();
+            int value =  request->datavalue();
+            printRequest(request);
 
-    LogEntry entry;
+            LogEntry entry;
 
-    raftObject->raftLock.lock();
+            raftObject->raftLock.lock();
 
-    if(raftObject->state != LEADER){
-     reply->set_success(false);
-     reply->set_leaderid(raftObject->leaderIdx);
-     raftObject->raftLock.unlock();
-     return Status::OK;
-    }
+            if(raftObject->state != LEADER){
+                reply->set_success(false);
+                reply->set_leaderid(raftObject->leaderIdx);
+                raftObject->raftLock.unlock();
+                return Status::OK;
+            }
 
-    entry.GetOrPut = 1;
-    entry.key = key;
-    entry.value = value;
-    entry.command_id = raftObject->log.nextIdx;
-    entry.command_term = raftObject->currentTerm;
-    raftObject->log.LogAppend(entry);
-    raftObject->raftLock.unlock();
-   
-    executeEntry(raftObject->currentTerm ,entry.command_id, raftObject->log.LastApplied, raftObject->log.commitIdx, value,raftObject);
-    reply->set_success(true);
-    reply->set_leaderid(raftObject->leaderIdx);
-    reply->set_datavalue(value);
-    printResponse(reply);
+            entry.GetOrPut = 1;
+            entry.key = key;
+            entry.value = value;
+            entry.command_id = raftObject->log.nextIdx;
+            entry.command_term = raftObject->currentTerm;
+            raftObject->log.LogAppend(entry);
+            raftObject->raftLock.unlock();
 
-    std::cout << "Database:Exiting Get\n";
-    return Status::OK;
-  }
+            executeEntry(raftObject->currentTerm ,entry.command_id, raftObject->log.LastApplied, raftObject->log.commitIdx, value,raftObject);
+            reply->set_success(true);
+            reply->set_leaderid(raftObject->leaderIdx);
+            reply->set_datavalue(value);
+            printResponse(reply);
 
-  Status Put(ServerContext* context, const DatabaseRequest* request, DatabaseResponse* reply) override {
-    // Call put impl
-    std::cout << "Database:Entering Put\n";
-    std::string key = request->datakey();
-    int value =  request->datavalue();
-    printRequest(request);
+            std::cout << "Database:Exiting Get\n";
+            return Status::OK;
+        }
 
-    LogEntry entry;
+        Status Put(ServerContext* context, const DatabaseRequest* request, DatabaseResponse* reply) override {
+            // Call put impl
+            std::cout << "Database:Entering Put\n";
+            std::string key = request->datakey();
+            int value =  request->datavalue();
+            printRequest(request);
 
-    raftObject->raftLock.lock();
-    
-    if(raftObject->state != LEADER){
-     reply->set_success(false);
-     reply->set_leaderid(raftObject->leaderIdx);
-     raftObject->raftLock.unlock();
-     return Status::OK;
-    }
-    entry.GetOrPut = 0;
-    entry.key = key;
-    entry.value = value;
-    entry.command_id = raftObject->log.nextIdx;
-    entry.command_term = raftObject->currentTerm;
-    raftObject->log.LogAppend(entry);
-    raftObject->raftLock.unlock();
-   
-    executeEntry(raftObject->currentTerm,entry.command_id, raftObject->log.LastApplied, raftObject->log.commitIdx, value, raftObject);
+            LogEntry entry;
 
-    reply->set_success(true);
-    reply->set_leaderid(raftObject->leaderIdx);
-    reply->set_datavalue(value);
-    printResponse(reply);
-    std::cout << "Database:Exiting Put\n";
-    return Status::OK;
-  }
+            raftObject->raftLock.lock();
 
-  void printRequest(const DatabaseRequest* request) {
-      std::cout <<" Printing Request : \n";
-      std::cout << "SequenceID : " << request->sequenceid() << ", dataKey : " <<request->datakey() << ", dataValue : " << request->datavalue() << std::endl;
-  }
+            if(raftObject->state != LEADER){
+                reply->set_success(false);
+                reply->set_leaderid(raftObject->leaderIdx);
+                raftObject->raftLock.unlock();
+                return Status::OK;
+            }
+            entry.GetOrPut = 0;
+            entry.key = key;
+            entry.value = value;
+            entry.command_id = raftObject->log.nextIdx;
+            entry.command_term = raftObject->currentTerm;
+            raftObject->log.LogAppend(entry);
+            raftObject->raftLock.unlock();
 
-  void printResponse(DatabaseResponse* reply) {
-      std::cout <<" Printing Response : \n";
-      std::cout << "success : " << reply->success() << ", leaderID : " <<reply->leaderid() << ", dataValue : " << reply->datavalue() << std::endl;
-  }
+            executeEntry(raftObject->currentTerm,entry.command_id, raftObject->log.LastApplied, raftObject->log.commitIdx, value, raftObject);
+
+            reply->set_success(true);
+            reply->set_leaderid(raftObject->leaderIdx);
+            reply->set_datavalue(value);
+            printResponse(reply);
+            std::cout << "Database:Exiting Put\n";
+            return Status::OK;
+        }
+
+        void printRequest(const DatabaseRequest* request) {
+            std::cout <<" Printing Request : \n";
+            std::cout << "SequenceID : " << request->sequenceid() << ", dataKey : " <<request->datakey() << ", dataValue : " << request->datavalue() << std::endl;
+        }
+
+        void printResponse(DatabaseResponse* reply) {
+            std::cout <<" Printing Response : \n";
+            std::cout << "success : " << reply->success() << ", leaderID : " <<reply->leaderid() << ", dataValue : " << reply->datavalue() << std::endl;
+        }
 };
 
 class RaftResponder final : public Raft::Service {
 
     public:
-    raftUtil* raftObject;
+        raftUtil* raftObject;
 
-    Status AppendEntries(ServerContext* context, const RaftRequest* request, RaftReply* reply) override {
-	std::cout << "Raft:Inside AppendEntries\n";
-         uint32_t term = request->term();
-         uint32_t prevLogIndex = request->prevlogidx();
-         uint32_t prevLogTerm = request->prevlogterm();
-         uint32_t leaderCommit = request->leadercommit();
-         LogEntry *entry = new LogEntry;
-         entry->GetOrPut = (request->command() == true)?1:0; //1 - Get, 0 - Put
-         entry->key = request->logkey();
-         entry->value = request->logvalue();
-         entry->command_term = request->logterm();
-         entry->command_id = request->logidx();
-         bool is_heartbeat = request->isheartbeat();
-         raftObject->raftLock.lock();
+        Status AppendEntries(ServerContext* context, const RaftRequest* request, RaftReply* reply) override {
+            std::cout << "Raft:Inside AppendEntries\n";
+            uint32_t term = request->term();
+            uint32_t prevLogIndex = request->prevlogidx();
+            uint32_t prevLogTerm = request->prevlogterm();
+            uint32_t leaderCommit = request->leadercommit();
+            LogEntry *entry = new LogEntry;
+            entry->GetOrPut = (request->command() == true)?1:0; //1 - Get, 0 - Put
+            entry->key = request->logkey();
+            entry->value = request->logvalue();
+            entry->command_term = request->logterm();
+            entry->command_id = request->logidx();
+            bool is_heartbeat = request->isheartbeat();
+            raftObject->raftLock.lock();
 
-         if(term < raftObject->currentTerm){             //Wrong leader, turn him down!
-          raftObject->currentTerm = term;                //Update currentTerm to latest from the surprisingly new leader!
+            if(term < raftObject->currentTerm){             //Wrong leader, turn him down!
+                raftObject->currentTerm = term;                //Update currentTerm to latest from the surprisingly new leader!
 
-          raftObject->raftLock.unlock(); 
-          reply->set_appendsuccess(false);
-          reply->set_term(raftObject->currentTerm); 
-        
-          return Status::OK; 
-         }
-         else{                                                  //Right leader
-          raftObject->currentTerm = term;                       //Update currentTerm to latest from the surprisingly new leader, if term is different from our currentTerm!
+                raftObject->raftLock.unlock(); 
+                reply->set_appendsuccess(false);
+                reply->set_term(raftObject->currentTerm); 
 
-          if(raftObject->state == CANDIDATE)
-           raftObject->state = FOLLOWER;                        //Move to follower, because some other leader is up now
+                return Status::OK; 
+            }
+            else{                                                  //Right leader
+                if(raftObject->currentTerm < term){                   //Move to follower, because some other leader is up now
+                    raftObject->state = FOLLOWER;
+                    raftObject->electionCV.notify_all();
+                }
+                raftObject->currentTerm = term;                       //Update currentTerm to latest from the surprisingly new leader, if term is different from our currentTerm!
+ 
+ /*
+                if(raftObject->state == CANDIDATE){
+                    raftObject->state = FOLLOWER;                        //Move to follower, because some other leader is up now
+                    raftObject->electionCV.notify_all();
+                }
+*/
 
-          if(is_heartbeat == false){                            //Not a heartbeat, let's begin!
-           if((raftObject->log.get_tail().command_term == prevLogTerm && raftObject->log.get_tail().command_id == prevLogIndex) || entry->command_id == 1 /*First command, ignore*/){ //Log consistent, let's proceed!
-            raftObject->log.LogAppend(*entry);
-         
-            raftObject->log.commitIdx = (leaderCommit < raftObject->log.nextIdx-1)?leaderCommit:(raftObject->log.nextIdx-1); //Setting the commitIdx on the follower
-	    raftObject->log.persist_commitIdx();
-            raftObject->raftLock.unlock();
+                if(is_heartbeat == false){                            //Not a heartbeat, let's begin!
+                    if((raftObject->log.get_tail().command_term == prevLogTerm && raftObject->log.get_tail().command_id == prevLogIndex) || entry->command_id == 1 /*First command, ignore*/){ //Log consistent, let's proceed!
+                        raftObject->log.LogAppend(*entry);
 
-            std::cout<<"leadercommit and follower commit"<<leaderCommit<<" "<<raftObject->log.commitIdx<<std::endl;	    
-            //Offloading the execution to the follower based on its convenience! Expected to execute until there is zero gap between LastApplied and commitIdx
-            int *value;
-	    value = new int;
-            std::thread execute_thread(executeEntry,entry->command_term,entry->command_id,std::ref(raftObject->log.LastApplied),std::ref(raftObject->log.commitIdx),std::ref(*value),raftObject);
-            execute_thread.detach();
-           
-            reply->set_appendsuccess(true);
-            reply->set_term(raftObject->currentTerm); 
-            delete entry;
-	    delete value;
-            return Status::OK;
-           }
-           else{ //Log inconsistent, turn down the request!
-            reply->set_appendsuccess(false);
-            reply->set_term(raftObject->currentTerm);
-            raftObject->log.LogCleanup();   //Pruning the log here!
- 	    raftObject->log.PersistentLogCleanup(); //Pruning persistent log here
-            raftObject->raftLock.unlock();
-            delete entry;
-            return Status::OK;
-           }
-         }
-         else{        //Proper heartbeat ack, your term is same as the leader term
-           raftObject->raftLock.unlock(); 
-           reply->set_appendsuccess(true);
-           reply->set_term(raftObject->currentTerm); 
-           delete entry;
-           return Status::OK; 
-         }
+                        raftObject->log.commitIdx = (leaderCommit < raftObject->log.nextIdx-1)?leaderCommit:(raftObject->log.nextIdx-1); //Setting the commitIdx on the follower
+                        raftObject->log.persist_commitIdx();
+                        raftObject->raftLock.unlock();
+
+                        std::cout<<"leadercommit and follower commit"<<leaderCommit<<" "<<raftObject->log.commitIdx<<std::endl;	    
+                        //Offloading the execution to the follower based on its convenience! Expected to execute until there is zero gap between LastApplied and commitIdx
+                        int *value;
+                        value = new int;
+                        std::thread execute_thread(executeEntry,entry->command_term,entry->command_id,std::ref(raftObject->log.LastApplied),std::ref(raftObject->log.commitIdx),std::ref(*value),raftObject);
+                        execute_thread.detach();
+
+                        reply->set_appendsuccess(true);
+                        reply->set_term(raftObject->currentTerm); 
+                        delete entry;
+                        delete value;
+                        return Status::OK;
+                    }
+                    else{ //Log inconsistent, turn down the request!
+                        reply->set_appendsuccess(false);
+                        reply->set_term(raftObject->currentTerm);
+                        raftObject->log.LogCleanup();   //Pruning the log here!
+                        raftObject->log.PersistentLogCleanup(); //Pruning persistent log here
+                        raftObject->raftLock.unlock();
+                        delete entry;
+                        return Status::OK;
+                    }
+                }
+                else{        //Proper heartbeat ack, your term is same as the leader term
+                    raftObject->raftLock.unlock(); 
+                    reply->set_appendsuccess(true);
+                    reply->set_term(raftObject->currentTerm); 
+                    raftObject->electionCV.notify_all();
+                    delete entry;
+                    return Status::OK; 
+                }
+            }
         }
-     }
 
-    Status RequestVote(ServerContext* context, const RaftRequest* request, RaftReply* reply) override {
-	std::cout << "Raft:Inside RequestVote\n";
-	return Status::OK;
-    }
+        Status RequestVote(ServerContext* context, const RaftRequest* request, RaftReply* reply) override {
+            std::cout << "Raft:Inside RequestVote\n";
+
+            uint32_t term = request->term();
+            LogEntry tailEntry;
+            raftObject->raftLock.lock();
+            reply->set_term(raftObject->currentTerm);
+            // If this server's term is greater than requester, then requester is out of date, you are probably a leader, Don't vote
+            if (raftObject->currentTerm > term) {
+                reply->set_votegranted(false);
+            } else {
+                // If you are in Candidate state, step down to follower
+                if (raftObject->currentTerm < term) {
+                    raftObject->state = FOLLOWER;
+                    raftObject->currentTerm = term;
+                    raftObject->electionCV.notify_all();
+                }
+
+                if(raftObject->log.nextIdx > 1)
+                    tailEntry = raftObject->log.get_tail();
+                else{
+                    tailEntry.command_id = 0;    //Expecting 0 on first entry so that check fails
+                    tailEntry.command_term = 0;
+                }
+
+                if ((term <= raftObject->lastTermVotedFor) && ((raftObject->votedFor != -1))) { //You've already voted for someone or voted for yourself, don't vote!
+                    reply->set_votegranted(false);
+                } else if ((tailEntry.command_term > request->prevlogterm()) || ((tailEntry.command_term == request->prevlogterm()) && (tailEntry.command_id > request->logidx()))) { //Nope, election rule failed. :(
+                    reply->set_votegranted(false);
+                } else { // Yes, democracy won, let's vote!
+                    reply->set_votegranted(true);
+                    raftObject->votedFor = request->candidateidx();
+                    raftObject->lastTermVotedFor = request->term();
+                    raftObject->persist_vote();
+                    raftObject->electionCV.notify_all();
+                }
+            }
+            raftObject->raftLock.unlock();
+            return Status::OK;
+        }
 };
 
 
 void RunDatabase(uint32_t serverIdx, raftUtil& raftObject) {
-  std::string server_address;
+    std::string server_address;
 
-  switch (serverIdx) {
-    case 0 : server_address = "10.10.1.1:50051"; break;
-    case 1 : server_address = "10.10.1.2:50051"; break;
-    case 2 : server_address = "10.10.1.3:50051"; break;
-    default : std::cout << "Illegal serverIdx. Exiting!" << std::endl; break;
-  }
+    switch (serverIdx) {
+        case 0 : server_address = "10.10.1.1:50051"; break;
+        case 1 : server_address = "10.10.1.2:50051"; break;
+        case 2 : server_address = "10.10.1.3:50051"; break;
+        default : std::cout << "Illegal serverIdx. Exiting!" << std::endl; break;
+    }
 
-  DatabaseImpl service;
-  service.raftObject = &raftObject;
+    DatabaseImpl service;
+    service.raftObject = &raftObject;
 
-  grpc::EnableDefaultHealthCheckService(true);
-  grpc::reflection::InitProtoReflectionServerBuilderPlugin();
-  ServerBuilder builder;
-  // Listen on the given address without any authentication mechanism.
-  builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
-  // Register "service" as the instance through which we'll communicate with
-  // clients. In this case it corresponds to an *synchronous* service.
-  builder.RegisterService(&service);
-  // Finally assemble the server.
-  std::unique_ptr<Server> server(builder.BuildAndStart());
-  std::cout << "Database Server listening on " << server_address << std::endl;
+    grpc::EnableDefaultHealthCheckService(true);
+    grpc::reflection::InitProtoReflectionServerBuilderPlugin();
+    ServerBuilder builder;
+    // Listen on the given address without any authentication mechanism.
+    builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
+    // Register "service" as the instance through which we'll communicate with
+    // clients. In this case it corresponds to an *synchronous* service.
+    builder.RegisterService(&service);
+    // Finally assemble the server.
+    std::unique_ptr<Server> server(builder.BuildAndStart());
+    std::cout << "Database Server listening on " << server_address << std::endl;
 
-  // Wait for the server to shutdown. Note that some other thread must be
-  // responsible for shutting down the server for this call to ever return.
-  server->Wait();
+    // Wait for the server to shutdown. Note that some other thread must be
+    // responsible for shutting down the server for this call to ever return.
+    server->Wait();
 }
 
 void RunRaft(uint32_t serverIdx, raftUtil& raftObject) {
 
-  RaftResponder service;
-  service.raftObject = &raftObject;
-  std::string server_address;
-  switch (serverIdx) {
-    case 0 : server_address = "10.10.1.1:4096"; break;
-    case 1 : server_address = "10.10.1.2:4096"; break;
-    case 2 : server_address = "10.10.1.3:4096"; break;
-    default : std::cout << "Illegal serverIdx. Exiting!" << std::endl; break;
-  }
-  grpc::EnableDefaultHealthCheckService(true);
-  grpc::reflection::InitProtoReflectionServerBuilderPlugin();
-  ServerBuilder builder;
-  // Listen on the given address without any authentication mechanism.
-  builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
-  // Register "service" as the instance through which we'll communicate with
-  // clients. In this case it corresponds to an *synchronous* service.
-  builder.RegisterService(&service);
-  // Finally assemble the server.
-  std::unique_ptr<Server> server(builder.BuildAndStart());
-  std::cout << "Raft Server listening on " << server_address << std::endl;
+    RaftResponder service;
+    service.raftObject = &raftObject;
+    std::string server_address;
+    switch (serverIdx) {
+        case 0 : server_address = "10.10.1.1:4096"; break;
+        case 1 : server_address = "10.10.1.2:4096"; break;
+        case 2 : server_address = "10.10.1.3:4096"; break;
+        default : std::cout << "Illegal serverIdx. Exiting!" << std::endl; break;
+    }
+    grpc::EnableDefaultHealthCheckService(true);
+    grpc::reflection::InitProtoReflectionServerBuilderPlugin();
+    ServerBuilder builder;
+    // Listen on the given address without any authentication mechanism.
+    builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
+    // Register "service" as the instance through which we'll communicate with
+    // clients. In this case it corresponds to an *synchronous* service.
+    builder.RegisterService(&service);
+    // Finally assemble the server.
+    std::unique_ptr<Server> server(builder.BuildAndStart());
+    std::cout << "Raft Server listening on " << server_address << std::endl;
 
-  // Wait for the server to shutdown. Note that some other thread must be
-  // responsible for shutting down the server for this call to ever return.
-  server->Wait();
+    // Wait for the server to shutdown. Note that some other thread must be
+    // responsible for shutting down the server for this call to ever return.
+    server->Wait();
 }
 
 int main(int argc, char** argv) {
 
-  if (argc != 2) {
-   std::cout << "Please provide only serverIdx!" << std::endl;
-   return 0;
-  } 
-  uint32_t serverIdx = atoi(argv[1]);
-  std::cout <<" This server's ID = " << serverIdx << std::endl;
+    if (argc != 2) {
+        std::cout << "Please provide only serverIdx!" << std::endl;
+        return 0;
+    }
+    uint32_t serverIdx = atoi(argv[1]);
+    std::cout <<" This server's ID = " << serverIdx << std::endl;
 
-  raftUtil raft(serverIdx);
-  std::thread peerThread(PeerThreadServer, std::ref(raft)); 
-  std::thread databaseThread(RunDatabase, serverIdx, std::ref(raft));
-  std::thread raftThread(RunRaft, serverIdx, std::ref(raft));
-  raftThread.join();
-  databaseThread.join();
-  peerThread.join();
-  return 0;
+    raftUtil raft(serverIdx);
+//    raft.state = LEADER;
+    std::thread peerThread(PeerThreadServer, std::ref(raft)); 
+    std::thread databaseThread(RunDatabase, serverIdx, std::ref(raft));
+    std::thread raftThread(RunRaft, serverIdx, std::ref(raft));
+    //std::thread electionTimeoutThread(electionTimeout, std::chrono::microseconds(1000), std::ref(raft));
+    std::thread sendHeartbeatThread(heartbeatThread, std::chrono::microseconds(400), std::ref(raft));
+    raftThread.join();
+    databaseThread.join();
+    peerThread.join();
+    //electionTimeoutThread.join();
+    sendHeartbeatThread.join(); //FIXME - this thread should only start when a server becomes a leader. 
+    return 0;
 }

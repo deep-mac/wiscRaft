@@ -24,6 +24,7 @@ message RaftRequest {
   uint32 logIdx = 9;
   uint32 leaderCommit = 10;
   bool command = 11;
+  uint32 candidateIdx = 12;
 }
 
 message RaftReply {
