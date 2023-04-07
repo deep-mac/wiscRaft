@@ -368,6 +368,7 @@ void heartbeatThread(std::chrono::microseconds us, raftUtil& raftObj)
                     if(i != raftObject->serverIdx)
                         peerSendHeartBeatThread[i] = std::thread(PeerSendHeartBeat, i, raftObject, std::ref(raftObject->peerServers[i]), &ret_term[i], &success[i]);
                 }
+                printf("Spawned heartbeat threads\n");
                 while(1){
                     raftObject->raftLock.lock();
                     for (int i = 0; i < 3; i++){
@@ -386,6 +387,7 @@ void heartbeatThread(std::chrono::microseconds us, raftUtil& raftObj)
                     raftObject->raftLock.unlock();
                     std::this_thread::yield();
                 }
+                printf("heartbeat thread: After while 1 - threads should die by now\n");
             }
         }
         else{
