@@ -46,6 +46,11 @@ class LogEntry{
   client_id = copy.client_id;
   matched = copy.matched; 
  }
+
+ void printEntry() {
+    std::cout << " Printing Log Entry!";
+    std::cout << " command : " << GetOrPut << ", key : " << key << ", value : " <<value << ", command ID : " << command_id << ", commandTerm : " << command_term << ", client ID : " << client_id  << std::endl;
+ }
 };
 
 class Log{
@@ -64,17 +69,20 @@ class Log{
  Log(){
    //Initializing LastApplied on boot/crash comeback
    LastApplied = 0;
-   fin.open("applied.txt",std::fstream::in);
+   fin.open("applied.txt");
    std::string line;
    if(getline(fin,line,'\n'))
+   {
     LastApplied = stoi(line);
+    std::cout << "LastApplied : " << LastApplied << std::endl;
+   }
    fin.close();
   
    //Initializing log on boot/crash comeback 
    LogEntry copy;
    int i;
    nextIdx = 1;
-   fin.open("log.txt",std::fstream::in);
+   fin.open("log.txt");
    for(i=1; getline(fin,line); i++){
     if(i >= LastApplied+1){
      std::stringstream stream(line);
@@ -91,6 +99,7 @@ class Log{
      copy.command_term = stoi(temp);
      getline(stream,temp,'\n');
      copy.client_id = stoi(temp);
+     copy.printEntry();
      log.push_back(copy);     
     }
    }

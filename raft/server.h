@@ -18,6 +18,7 @@
 #include <mutex>
 #include "log.h"
 #include "raft.h"
+#include <chrono>
 
 using grpc::Channel;
 using grpc::Server;
@@ -40,6 +41,7 @@ class RaftRequester {
         uint32_t prevLogTerm;
         uint32_t lastLogIdx;
         uint32_t lastLogTerm;
+        long int usTimeout;
 
     public:
 
@@ -51,6 +53,7 @@ class RaftRequester {
             prevLogTerm(0),
             lastLogIdx(0),
             lastLogTerm(0) {
+	        usTimeout = 5000;
             }
 
         bool AppendEntries(uint32_t currentTerm, uint32_t leaderIdx, uint32_t prevLogIdx, uint32_t prevLogTerm, bool command, std::string key, int value, uint32_t commandIdx, uint32_t commandTerm, uint32_t leaderCommit, bool isHeartbeat, int &retTerm, bool &isSuccess) {
@@ -70,6 +73,10 @@ class RaftRequester {
             RaftReply reply;
 
             ClientContext context;
+
+            std::chrono::system_clock::time_point deadline = std::chrono::system_clock::now() + std::chrono::microseconds(usTimeout);
+
+            context.set_deadline(deadline);
 
             Status status = stub_->AppendEntries(&context, request, &reply);
             retTerm = reply.term();
@@ -94,6 +101,10 @@ class RaftRequester {
             RaftReply reply;
 
             ClientContext context;
+
+            std::chrono::system_clock::time_point deadline = std::chrono::system_clock::now() + std::chrono::microseconds(usTimeout);
+
+            context.set_deadline(deadline);
 
             Status status = stub_->RequestVote(&context, request, &reply);
 
