@@ -204,16 +204,17 @@ void PeerSendHeartBeat(int serverID, raftUtil* raftObj, RaftRequester &channel, 
         //FIXME - this has to timeout somehow
         bool rpc_status = channel.SendHeartBeat(raftObj->currentTerm,raftObj->leaderIdx, ret_term, ret_resp); //Call RPC
         if (rpc_status == false){
-            printf("requestVote RPC Failed\n");
+            printf("heartbeat RPC Failed\n");
         }
         else{
-            printf("request vote RPC Success for %d\n", serverID);
+            printf("heartbeat RPC Success for %d\n", serverID);
             if (raftObj->state == LEADER){
                 *term = ret_term; 
             }
         }
         //Return true no matter what because your job is to only send heartbeat. You will not get responses from all 
         *isSuccess = true;
+        printf("PeerSendHeartBeat:: end of thread for peer serverID = %d, rpc_status = %d\n", serverID, rpc_status);
     }
 }
 
@@ -230,7 +231,7 @@ void electionTimeout (std::chrono::microseconds timeout_time, raftUtil& raftObj)
             int timed_out = 0;
             
             if (raftObj.state != CANDIDATE) {
-                std::thread electionTimerThread(electionTimer, std::chrono::microseconds(1000), &raftObj, &timed_out);
+                std::thread electionTimerThread(electionTimer, std::chrono::microseconds(30000), &raftObj, &timed_out);
                 while(timeout_flag == 0 ){
                     auto start = std::chrono::high_resolution_clock::now();
                     raftObj.election_start = std::chrono::high_resolution_clock::now();
@@ -261,7 +262,7 @@ void electionTimeout (std::chrono::microseconds timeout_time, raftUtil& raftObj)
             //So just increment term and vote for yourself`
             int totalVotes = 0;
             int demote = 0;
-            std::thread electionInFlightThread(electionTimer, std::chrono::microseconds(1000), &raftObj, &timed_out);
+            std::thread electionInFlightThread(electionTimer, std::chrono::microseconds(30000), &raftObj, &timed_out);
             raftObject->raftLock.lock();
             raftObj.state = CANDIDATE;
             raftObject->currentTerm++;
@@ -276,6 +277,7 @@ void electionTimeout (std::chrono::microseconds timeout_time, raftUtil& raftObj)
             }
             while(1){
                 raftObject->raftLock.lock();
+                totalVotes = 1;
                 for (int i = 0; i < 3; i++){
                     if(voted[i]){
                         totalVotes++;
@@ -304,12 +306,12 @@ void electionTimeout (std::chrono::microseconds timeout_time, raftUtil& raftObj)
             if (totalVotes >= 2){
                 //Won election
                 //This will make sure the election timeout thread dies
-                raftObject->election_start = raftObject->election_start - std::chrono::microseconds(1000);
+                raftObject->election_start = raftObject->election_start - std::chrono::microseconds(30000);
                 raftObject->state = LEADER;
             }
             else if (demote == 1){
                 raftObject->state = FOLLOWER;
-                raftObject->election_start = raftObject->election_start - std::chrono::microseconds(1000);
+                raftObject->election_start = raftObject->election_start - std::chrono::microseconds(30000);
                 for (int i = 0; i < 3; i++){
                     if(i != raftObject->serverIdx){
                         if (peerRequestVoteThread[i].joinable()){
@@ -365,12 +367,15 @@ void heartbeatThread(std::chrono::microseconds us, raftUtil& raftObj)
                 ret_term = {0, 0, 0};
                 success = {false, false, false};
                 for (int i = 0; i < 3; i++){
-                    if(i != raftObject->serverIdx)
+                    if(i != raftObject->serverIdx){
                         peerSendHeartBeatThread[i] = std::thread(PeerSendHeartBeat, i, raftObject, std::ref(raftObject->peerServers[i]), &ret_term[i], &success[i]);
+                        peerSendHeartBeatThread[i].detach();
+                    }
                 }
                 printf("Spawned heartbeat threads\n");
                 while(1){
                     raftObject->raftLock.lock();
+                    totalSuccess = 0;
                     for (int i = 0; i < 3; i++){
                         if (success[i] == true){
                             totalSuccess++;

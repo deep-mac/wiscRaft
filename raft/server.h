@@ -129,6 +129,11 @@ class RaftRequester {
 
             ClientContext context;
 
+            std::chrono::system_clock::time_point deadline = std::chrono::system_clock::now() + std::chrono::microseconds(usTimeout);
+
+            context.set_deadline(deadline);
+
+
             Status status = stub_->AppendEntries(&context, request, &reply);
 
             if (status.ok()) {
