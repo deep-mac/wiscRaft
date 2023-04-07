@@ -209,6 +209,7 @@ class RaftResponder final : public Raft::Service {
             raftObject->raftLock.lock();
             reply->set_term(raftObject->currentTerm);
             // If this server's term is greater than requester, then requester is out of date, you are probably a leader, Don't vote
+            printf("Responder:: RequetVote:: currentTerm = %d, receveid term  = %d\n", raftObject->currentTerm, term);
             if (raftObject->currentTerm > term) {
                 reply->set_votegranted(false);
             } else {

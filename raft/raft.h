@@ -271,6 +271,7 @@ void electionTimeout (std::chrono::microseconds timeout_time, raftUtil& raftObj)
             raftObject->raftLock.lock();
             raftObj.state = CANDIDATE;
             raftObject->currentTerm++;
+            printf("ElectionTimeout:: incremented current term to %d\n", raftObject->currentTerm);
             raftObject->votedFor = raftObject->serverIdx;
             raftObject->lastTermVotedFor = raftObject->currentTerm;
             raftObject->persist_vote();
