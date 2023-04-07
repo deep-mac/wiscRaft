@@ -299,8 +299,8 @@ void RunRaft(uint32_t serverIdx, raftUtil& raftObject) {
 
     // Wait for the server to shutdown. Note that some other thread must be
     // responsible for shutting down the server for this call to ever return.
-    std::thread sendHeartbeatThread(heartbeatThread, std::chrono::microseconds(10000), std::ref(raftObject));
-    std::thread electionTimeoutThread(electionTimeout, std::chrono::microseconds(30000), std::ref(raftObject));
+    std::thread sendHeartbeatThread(heartbeatThread, std::chrono::microseconds(raftObject.heartbeat_interval), std::ref(raftObject));
+    std::thread electionTimeoutThread(electionTimeout, std::chrono::microseconds(raftObject.election_timeout_duration), std::ref(raftObject));
     server->Wait();
     sendHeartbeatThread.join(); //FIXME - this thread should only start when a server becomes a leader. 
     electionTimeoutThread.join();
@@ -316,6 +316,8 @@ int main(int argc, char** argv) {
     std::cout <<" This server's ID = " << serverIdx << std::endl;
 
     raftUtil raft(serverIdx);
+    raft.election_timeout_duration = 30000;
+    raft.heartbeat_interval = 10000;
     //raft.state = LEADER;
     std::thread peerThread(PeerThreadServer, std::ref(raft)); 
     std::thread databaseThread(RunDatabase, serverIdx, std::ref(raft));

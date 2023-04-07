@@ -62,6 +62,8 @@ class raftUtil {
         int votedFor;
         int lastTermVotedFor;
         State state;
+        int heartbeat_interval;
+        int election_timeout_duration;
 
         std::mutex raftLock;
         Log log; //Log container doesn't exist
@@ -232,7 +234,7 @@ void electionTimeout (std::chrono::microseconds timeout_time, raftUtil& raftObj)
             int timed_out = 0;
             
             if (raftObj.state != CANDIDATE) {
-                std::thread electionTimerThread(electionTimer, std::chrono::microseconds(30000), &raftObj, &timed_out);
+                std::thread electionTimerThread(electionTimer, std::chrono::microseconds(raftObj.election_timeout_duration), &raftObj, &timed_out);
                 while(timeout_flag == 0 ){
                     auto start = std::chrono::high_resolution_clock::now();
                     raftObj.election_start = std::chrono::high_resolution_clock::now();
@@ -264,7 +266,7 @@ void electionTimeout (std::chrono::microseconds timeout_time, raftUtil& raftObj)
             //So just increment term and vote for yourself`
             int totalVotes = 0;
             int demote = 0;
-            std::thread electionInFlightThread(electionTimer, std::chrono::microseconds(30000), &raftObj, &timed_out);
+            std::thread electionInFlightThread(electionTimer, std::chrono::microseconds(raftObj.election_timeout_duration), &raftObj, &timed_out);
             printf("starting election in flight thread\n");
             raftObject->raftLock.lock();
             raftObj.state = CANDIDATE;
@@ -313,7 +315,7 @@ void electionTimeout (std::chrono::microseconds timeout_time, raftUtil& raftObj)
                 //This will make sure the election timeout thread dies
                 printf("BECAME LEADER\n");
                 raftObject->leaderIdx = raftObject->serverIdx;
-                raftObject->election_start = raftObject->election_start - std::chrono::microseconds(30000);
+                raftObject->election_start = raftObject->election_start - std::chrono::microseconds(raftObj.election_timeout_duration);
                 raftObject->state = LEADER;
                 for (int i = 0; i < 3; i++){
                     if(i != raftObject->serverIdx){
@@ -328,7 +330,7 @@ void electionTimeout (std::chrono::microseconds timeout_time, raftUtil& raftObj)
             }
             else if (demote == 1){
                 raftObject->state = FOLLOWER;
-                raftObject->election_start = raftObject->election_start - std::chrono::microseconds(30000);
+                raftObject->election_start = raftObject->election_start - std::chrono::microseconds(raftObj.election_timeout_duration);
                 for (int i = 0; i < 3; i++){
                     if(i != raftObject->serverIdx){
                         if (peerRequestVoteThread[i].joinable()){
