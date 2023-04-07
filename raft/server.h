@@ -53,7 +53,7 @@ class RaftRequester {
             prevLogTerm(0),
             lastLogIdx(0),
             lastLogTerm(0) {
-	        usTimeout = 5000;
+	        usTimeout = 10000;
             }
 
         bool AppendEntries(uint32_t currentTerm, uint32_t leaderIdx, uint32_t prevLogIdx, uint32_t prevLogTerm, bool command, std::string key, int value, uint32_t commandIdx, uint32_t commandTerm, uint32_t leaderCommit, bool isHeartbeat, int &retTerm, bool &isSuccess) {

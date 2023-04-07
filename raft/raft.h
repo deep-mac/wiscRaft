@@ -178,7 +178,6 @@ void PeerRequestVote(int serverID, raftUtil* raftObj, RaftRequester &channel, in
     raftObj->raftLock.unlock();
 
     if (raftObj->state == CANDIDATE){
-        //FIXME - this has to timeout somehow
         bool rpc_status = channel.RequestVote(raftObj->currentTerm,raftObj->serverIdx,prev_entry.command_id,prev_entry.command_term, ret_term, ret_resp); //Call RPC
         if (rpc_status == false){
             printf("requestVote RPC Failed\n");
@@ -306,6 +305,8 @@ void electionTimeout (std::chrono::microseconds timeout_time, raftUtil& raftObj)
             if (totalVotes >= 2){
                 //Won election
                 //This will make sure the election timeout thread dies
+                printf("BECAME LEADER\n");
+                raftObject->leaderIdx = raftObject->serverIdx;
                 raftObject->election_start = raftObject->election_start - std::chrono::microseconds(30000);
                 raftObject->state = LEADER;
             }
