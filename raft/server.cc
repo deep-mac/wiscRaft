@@ -281,9 +281,9 @@ void RunRaft(uint32_t serverIdx, raftUtil& raftObject) {
     service.raftObject = &raftObject;
     std::string server_address;
     switch (serverIdx) {
-        case 0 : server_address = "10.10.1.1:4096"; break;
-        case 1 : server_address = "10.10.1.2:4096"; break;
-        case 2 : server_address = "10.10.1.3:4096"; break;
+        case 0 : server_address = "10.10.1.1:2048"; break;
+        case 1 : server_address = "10.10.1.2:2048"; break;
+        case 2 : server_address = "10.10.1.3:2048"; break;
         default : std::cout << "Illegal serverIdx. Exiting!" << std::endl; break;
     }
     grpc::EnableDefaultHealthCheckService(true);
@@ -317,8 +317,8 @@ int main(int argc, char** argv) {
     std::cout <<" This server's ID = " << serverIdx << std::endl;
 
     raftUtil raft(serverIdx);
-    raft.election_timeout_duration = 30000;
-    raft.heartbeat_interval = 10000;
+    raft.election_timeout_duration = 300000;
+    raft.heartbeat_interval = 5000;
     //raft.state = LEADER;
     std::thread peerThread(PeerThreadServer, std::ref(raft)); 
     std::thread databaseThread(RunDatabase, serverIdx, std::ref(raft));

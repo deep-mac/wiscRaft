@@ -74,9 +74,9 @@ class raftUtil {
         std::ofstream fout;
 
         raftUtil(uint32_t id) : log(), database() {//And probably many more args
-            peerServerIPs[0] = "10.10.1.1:4096";
-            peerServerIPs[1] = "10.10.1.2:4096";
-            peerServerIPs[2] = "10.10.1.3:4096";
+            peerServerIPs[0] = "10.10.1.1:2048";
+            peerServerIPs[1] = "10.10.1.2:2048";
+            peerServerIPs[2] = "10.10.1.3:2048";
 
             serverIdx = id;
             currentTerm = 0;
@@ -196,6 +196,7 @@ void PeerRequestVote(int serverID, raftUtil* raftObj, RaftRequester &channel, in
                 }
             }
         }
+        printf("PeerRequestVote:: Received term = %d, received vote = %d\n", *term, *voteGranted);
     }
 }
 
@@ -291,8 +292,10 @@ void electionTimeout (std::chrono::microseconds timeout_time, raftUtil& raftObj)
                     }
                     if (ret_term[i] > raftObject->currentTerm) {
                         demote = 1; 
+                        raftObject->currentTerm = ret_term[i];
                     }
                 }
+                //printf("ret term = %d, %d, %d, currentTerm = %d\n", ret_term[0], ret_term[1], ret_term[2], raftObject->currentTerm);
                 if (totalVotes >= 2 || timed_out == 1) {
                     raftObject->raftLock.unlock();
                     break;
