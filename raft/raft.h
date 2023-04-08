@@ -46,6 +46,8 @@ class raftUtil;
 
 void PeerAppendEntry(int serverID, raftUtil* raftObj, RaftRequester &channel);
 
+void executeEntry(int commandTerm, int commandID, int &lastApplied, int &commitIdx, int &retValue, raftUtil* raftObject);
+
 class raftUtil {
 
 
@@ -70,6 +72,7 @@ class raftUtil {
         LogDatabase database;
         std::vector<RaftRequester> peerServers;
         std::map<int, std::string> peerServerIPs;
+        std::vector<std::thread> bringupThreads;
         std::ifstream fin;
         std::ofstream fout;
         std::ifstream fin_term;
@@ -115,6 +118,15 @@ class raftUtil {
             fin_term.close();
             persist_currentTerm();
 
+	    for(int j=log.LastApplied+1 ; j<log.nextIdx; j++){
+               LogEntry entry;
+	       int *value;
+	       value = new int;
+	       entry = log.get_entry(j-log.LastApplied-1);
+	       std::thread th(executeEntry,entry.command_term, entry.command_id,std::ref(log.LastApplied),std::ref(std::ref(log.commitIdx)),std::ref(*value), this);
+               bringupThreads.push_back(std::move(th));
+               bringupThreads.back().detach();
+            }
         }
 
         //Used to persist votedFor variable
@@ -465,8 +477,14 @@ void PeerAppendEntry(int serverID, raftUtil* raftObj, RaftRequester &channel){
 
             if(start > raftObj->log.LastApplied){                                 //Get from volatile log
                 entry = raftObj->log.get_entry(start - raftObj->log.LastApplied - 1);
-                if(start > 1)
-                    prev_entry = raftObj->log.get_entry(start - raftObj->log.LastApplied - 2);
+                if(start > 1) {
+		    int prevIdx = start - raftObj->log.LastApplied - 2;
+ 		    if (prevIdx >= 0) {
+	                prev_entry = raftObj->log.get_entry(start - raftObj->log.LastApplied - 2);
+		    } else {
+                        prev_entry = raftObj->log.get_file_entry(start-1);
+		    }
+		}
             }
             else{
                 entry = raftObj->log.get_file_entry(start);
