@@ -118,14 +118,17 @@ class raftUtil {
             fin_term.close();
             persist_currentTerm();
 
+	    printf("BEFORE THE WEIRD LOOP\n");
 	    for(int j=log.LastApplied+1 ; j<log.nextIdx; j++){
+	       printf("INSIDE THE WEIRD LOOP\n");
                LogEntry entry;
 	       int *value;
 	       value = new int;
 	       entry = log.get_entry(j-log.LastApplied-1);
-	       std::thread th(executeEntry,entry.command_term, entry.command_id,std::ref(log.LastApplied),std::ref(std::ref(log.commitIdx)),std::ref(*value), this);
+	       std::thread th(executeEntry,entry.command_term, entry.command_id,std::ref(log.LastApplied),std::ref(log.commitIdx),std::ref(*value), this);
                bringupThreads.push_back(std::move(th));
                bringupThreads.back().detach();
+	       delete value;
             }
         }
 
