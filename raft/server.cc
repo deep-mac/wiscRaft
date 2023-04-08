@@ -138,6 +138,7 @@ class RaftResponder final : public Raft::Service {
 
             if(term < raftObject->currentTerm){             //Wrong leader, turn him down!
                 raftObject->currentTerm = term;                //Update currentTerm to latest from the surprisingly new leader!
+                raftObject->persist_currentTerm();
 
                 raftObject->raftLock.unlock(); 
                 reply->set_appendsuccess(false);
@@ -151,6 +152,7 @@ class RaftResponder final : public Raft::Service {
                     raftObject->electionCV.notify_all();
                 }
                 raftObject->currentTerm = term;                       //Update currentTerm to latest from the surprisingly new leader, if term is different from our currentTerm!
+                raftObject->persist_currentTerm();
  
  /*
                 if(raftObject->state == CANDIDATE){
@@ -217,6 +219,7 @@ class RaftResponder final : public Raft::Service {
                 if (raftObject->currentTerm < term) {
                     raftObject->state = FOLLOWER;
                     raftObject->currentTerm = term;
+                    raftObject->persist_currentTerm();
                     raftObject->electionCV.notify_all();
                 }
 

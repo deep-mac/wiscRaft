@@ -72,6 +72,8 @@ class raftUtil {
         std::map<int, std::string> peerServerIPs;
         std::ifstream fin;
         std::ofstream fout;
+        std::ifstream fin_term;
+        std::ofstream fout_term;
 
         raftUtil(uint32_t id) : log(), database() {//And probably many more args
             peerServerIPs[0] = "10.10.1.1:2048";
@@ -104,6 +106,15 @@ class raftUtil {
             }
             fin.close();
 
+            fin_term.open("current_term.txt");
+            std::string line1;
+            if (getline(fin, line1, '\n')){
+                currentTerm = stoi(line1);
+                std::cout << "Current term from txt = " << currentTerm << std::endl;
+            }
+            fin_term.close();
+            persist_currentTerm();
+
         }
 
         //Used to persist votedFor variable
@@ -113,6 +124,14 @@ class raftUtil {
             fout<<line<<std::endl;
             fout.close();
         }
+
+        void persist_currentTerm(){
+            fout.open("current_term.txt", std::fstream::trunc);
+            std::string line = std::to_string(currentTerm);
+            fout << line << std::endl;
+            fout.close();
+        }
+
 
         raftUtil* get_raft(){
             return this;
@@ -272,6 +291,7 @@ void electionTimeout (std::chrono::microseconds timeout_time, raftUtil& raftObj)
             raftObject->raftLock.lock();
             raftObj.state = CANDIDATE;
             raftObject->currentTerm++;
+            raftObject->persist_currentTerm();
             printf("ElectionTimeout:: incremented current term to %d\n", raftObject->currentTerm);
             raftObject->votedFor = raftObject->serverIdx;
             raftObject->lastTermVotedFor = raftObject->currentTerm;
@@ -293,6 +313,7 @@ void electionTimeout (std::chrono::microseconds timeout_time, raftUtil& raftObj)
                     if (ret_term[i] > raftObject->currentTerm) {
                         demote = 1; 
                         raftObject->currentTerm = ret_term[i];
+                        raftObject->persist_currentTerm();
                     }
                 }
                 //printf("ret term = %d, %d, %d, currentTerm = %d\n", ret_term[0], ret_term[1], ret_term[2], raftObject->currentTerm);
@@ -407,6 +428,8 @@ void heartbeatThread(std::chrono::microseconds us, raftUtil& raftObj)
                         if (ret_term[i] > raftObject->currentTerm){
                             demote = 1;
                             raftObject->state = FOLLOWER;
+                            raftObject->currentTerm = ret_term[i];
+                            raftObject->persist_currentTerm();
                         }
                     }
                     if (totalSuccess >= 2 || demote == 1){
