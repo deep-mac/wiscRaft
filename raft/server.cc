@@ -74,7 +74,7 @@ class DatabaseImpl final : public Database::Service {
             // Call put impl
             std::cout << "Database:Entering Put\n";
             std::string key = request->datakey();
-            int value =  request->datavalue();
+            int put_value =  request->datavalue();
             printRequest(request);
 
             LogEntry entry;
@@ -89,17 +89,17 @@ class DatabaseImpl final : public Database::Service {
             }
             entry.GetOrPut = 0;
             entry.key = key;
-            entry.value = value;
+            entry.value = put_value;
             entry.command_id = raftObject->log.nextIdx;
             entry.command_term = raftObject->currentTerm;
             raftObject->log.LogAppend(entry);
             raftObject->raftLock.unlock();
 
-            executeEntry(raftObject->currentTerm,entry.command_id, raftObject->log.LastApplied, raftObject->log.commitIdx, value, raftObject);
+            executeEntry(raftObject->currentTerm,entry.command_id, raftObject->log.LastApplied, raftObject->log.commitIdx, put_value, raftObject);
 
             reply->set_success(true);
             reply->set_leaderid(raftObject->leaderIdx);
-            reply->set_datavalue(value);
+            reply->set_datavalue(put_value);
             printResponse(reply);
             std::cout << "Database:Exiting Put\n";
             return Status::OK;

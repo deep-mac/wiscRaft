@@ -570,13 +570,13 @@ void executeEntry(int commandTerm, int commandID, int &lastApplied, int &commitI
             assert(head_entry.command_id == commandID);
             assert(head_entry.command_term == commandTerm);
             if (head_entry.GetOrPut) {
-                if (raftObject->state == LEADER) {
+                if (raftObject->state == LEADER && raftObject->currentTerm <= commandTerm) {
                     retValue = raftObject->database.get(head_entry.key);
                 } else {
                     int ret = raftObject->database.get(head_entry.key);
                 }
             } else {
-                if (raftObject->state == LEADER) {
+                if (raftObject->state == LEADER && raftObject->currentTerm <= commandTerm) {
                     retValue = raftObject->database.put(head_entry.key, head_entry.value);
                 } else {
                     int ret = raftObject->database.put(head_entry.key, head_entry.value);
