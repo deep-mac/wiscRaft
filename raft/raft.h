@@ -113,7 +113,7 @@ class raftUtil {
 
             fin_term.open("current_term.txt");
             std::string line1;
-            if (getline(fin, line1, '\n')){
+            if (getline(fin_term, line1, '\n')){
                 currentTerm = stoi(line1);
                 std::cout << "Current term from txt = " << currentTerm << std::endl;
             }
@@ -607,7 +607,7 @@ void PeerThreadServer(raftUtil& raftObj){
                 //          std::cout<<"Peer Server Master Thread locked"<<std::endl;
 
                 if(raftObject->log.get_size() > raftObject->log.matchIdx - raftObject->log.LastApplied){                     //Check for unmatched entries in the volatile log
-                    printf("PeerThreadServer:: raftObject->log.matchIdx = %d, raftObject->log.LastApplied = %d, raftObject->log.get_size() = %d\n", raftObject->log.matchIdx, raftObject->log.LastApplied, raftObject->log.get_size());
+                    //printf("PeerThreadServer:: raftObject->log.matchIdx = %d, raftObject->log.LastApplied = %d, raftObject->log.get_size() = %d\n", raftObject->log.matchIdx, raftObject->log.LastApplied, raftObject->log.get_size());
                     for(int i=raftObject->log.get_size() ; i>0 ; i--){                        //Sweep through the volatile log to find the most recent matched idx and set all the previous entries to true
                        LogEntry entry = raftObject->log.get_entry(i-1);
                        for(int j=0; j<3 ; j++){
@@ -621,11 +621,11 @@ void PeerThreadServer(raftUtil& raftObj){
                     for(int i=0; i<3; i++){
                         if(i != raftObject->serverIdx && matched[i]){                                   //Check for majority, since we have only 3 servers, getting one other ack will give majority!
                             raftObject->log.matchIdx++;
-                            printf("PeerThreadServer:: Incremented matchIdx = %d \n", raftObject->log.matchIdx);
+                            //printf("PeerThreadServer:: Incremented matchIdx = %d \n", raftObject->log.matchIdx);
                             for(int j=0; j<raftObject->log.get_size(); j++){                                         //Well, fun part here, checking if matched till last term, then commit (commit rule)
                                 LogEntry val = raftObject->log.get_entry(j);
                                 if(val.command_term == raftObject->currentTerm){
-                                    printf("PeerThreadServer:: j = %d, matchIdx = %d, val.command_id = %d \n", j, raftObject->log.matchIdx, val.command_id);
+                                    //printf("PeerThreadServer:: j = %d, matchIdx = %d, val.command_id = %d \n", j, raftObject->log.matchIdx, val.command_id);
                                     if(raftObject->log.matchIdx >= val.command_id){
                                         raftObject->log.commitIdx = raftObject->log.matchIdx;
                                         raftObject->log.persist_commitIdx();                                                

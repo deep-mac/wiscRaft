@@ -232,7 +232,7 @@ class RaftResponder final : public Raft::Service {
 
                 if ((term <= raftObject->lastTermVotedFor) && ((raftObject->votedFor != -1))) { //You've already voted for someone or voted for yourself, don't vote!
                     reply->set_votegranted(false);
-                } else if ((tailEntry.command_term > request->prevlogterm()) || ((tailEntry.command_term == request->prevlogterm()) && (tailEntry.command_id > request->logidx()))) { //Nope, election rule failed. :(
+                } else if ((tailEntry.command_term > request->prevlogterm()) || ((tailEntry.command_term == request->prevlogterm()) && (tailEntry.command_id > request->prevlogidx()))) { //Nope, election rule failed. :(
                     reply->set_votegranted(false);
                 } else { // Yes, democracy won, let's vote!
                     reply->set_votegranted(true);
@@ -320,8 +320,8 @@ int main(int argc, char** argv) {
     std::cout <<" This server's ID = " << serverIdx << std::endl;
 
     raftUtil raft(serverIdx);
-    raft.election_timeout_duration = 300000;
-    raft.heartbeat_interval = 5000;
+    raft.election_timeout_duration = 4000000;
+    raft.heartbeat_interval = 500000;
     //raft.state = LEADER;
     std::thread peerThread(PeerThreadServer, std::ref(raft)); 
     std::thread databaseThread(RunDatabase, serverIdx, std::ref(raft));
