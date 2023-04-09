@@ -123,10 +123,12 @@ class RaftResponder final : public Raft::Service {
 
         Status AppendEntries(ServerContext* context, const RaftRequest* request, RaftReply* reply) override {
             std::cout << "Raft:Inside AppendEntries\n";
+            printTime();
             uint32_t term = request->term();
             uint32_t prevLogIndex = request->prevlogidx();
             uint32_t prevLogTerm = request->prevlogterm();
             uint32_t leaderCommit = request->leadercommit();
+            uint32_t prevLogTermLHS, prevLogIndexLHS;
             LogEntry *entry = new LogEntry;
             entry->GetOrPut = (request->command() == true)?1:0; //1 - Get, 0 - Put
             entry->key = request->logkey();
@@ -134,6 +136,7 @@ class RaftResponder final : public Raft::Service {
             entry->command_term = request->logterm();
             entry->command_id = request->logidx();
             bool is_heartbeat = request->isheartbeat();
+            bool prune = false;
             raftObject->raftLock.lock();
 
             if(term < raftObject->currentTerm){             //Wrong leader, turn him down!
@@ -143,6 +146,7 @@ class RaftResponder final : public Raft::Service {
                 raftObject->raftLock.unlock(); 
                 reply->set_appendsuccess(false);
                 reply->set_term(raftObject->currentTerm); 
+                printf("RaftResponder:: AppendEntries:: wrong leader\n");
 
                 return Status::OK; 
             }
@@ -162,14 +166,32 @@ class RaftResponder final : public Raft::Service {
 */
 
                 if(is_heartbeat == false){                            //Not a heartbeat, let's begin!
-                    if((raftObject->log.get_tail().command_term == prevLogTerm && raftObject->log.get_tail().command_id == prevLogIndex) || entry->command_id == 1 /*First command, ignore*/){ //Log consistent, let's proceed!
+                    printf("RaftResponder:: AppendEntries:: heartbeat false\n");
+                    if(raftObject->log.get_size()>0){
+                        prevLogTermLHS = raftObject->log.get_tail().command_term;
+                        prevLogIndexLHS = raftObject->log.get_tail().command_id;
+                    }
+                    else{
+                        if(prevLogIndex < raftObject->log.nextIdx - 1){ //Why? if your file is not trailing, time to prune!
+                            prevLogTermLHS = raftObject->log.get_file_entry(prevLogIndex).command_term;
+                            prevLogIndexLHS = raftObject->log.get_file_entry(prevLogIndex).command_id;
+                            prune = true;
+                        }
+                        else{                //Why? Because if you have a trailing log, deny the request straight away, 0 will fail the below condition
+                            prevLogTermLHS = 0;
+                            prevLogIndexLHS = 0; 
+                        }
+                    }
+                    if((prevLogTermLHS == prevLogTerm && prevLogIndexLHS == prevLogIndex) || entry->command_id == 1 /*First command, ignore*/){ //Log consistent, let's proceed!
                         raftObject->log.LogAppend(*entry);
+                        //raftObject->log.print();
 
+                        printf("RaftResponder:: AppendEntries::leaderCommit = %d, raftObject->log.nextIdx = %d\n", leaderCommit, raftObject->log.nextIdx);
                         raftObject->log.commitIdx = (leaderCommit < raftObject->log.nextIdx-1)?leaderCommit:(raftObject->log.nextIdx-1); //Setting the commitIdx on the follower
                         raftObject->log.persist_commitIdx();
                         raftObject->raftLock.unlock();
 
-                        std::cout<<"leadercommit and follower commit"<<leaderCommit<<" "<<raftObject->log.commitIdx<<std::endl;	    
+                        std::cout<<"RaftResponder:: AppendEntries::leadercommit and follower commit"<<leaderCommit<<" "<<raftObject->log.commitIdx<<std::endl;	    
                         //Offloading the execution to the follower based on its convenience! Expected to execute until there is zero gap between LastApplied and commitIdx
                         int *value;
                         value = new int;
@@ -185,14 +207,24 @@ class RaftResponder final : public Raft::Service {
                     else{ //Log inconsistent, turn down the request!
                         reply->set_appendsuccess(false);
                         reply->set_term(raftObject->currentTerm);
-                        raftObject->log.LogCleanup();   //Pruning the log here!
-                        raftObject->log.PersistentLogCleanup(); //Pruning persistent log here
+
+                        if(prune){
+                            if(raftObject->log.get_size()>0)
+                                raftObject->log.LogCleanup();   //Pruning the log here!
+
+                            raftObject->log.PersistentLogCleanup(); //Pruning persistent log here
+                        }
+
                         raftObject->raftLock.unlock();
                         delete entry;
                         return Status::OK;
                     }
                 }
                 else{        //Proper heartbeat ack, your term is same as the leader term
+                    if(raftObject->currentTerm <= term){                   //Move to follower, because some other leader is up now
+                        raftObject->state = FOLLOWER;
+                    }
+                    printf("RaftResponder:: AppendEntries:: Acknowleding heartbeat from leader\n");
                     raftObject->raftLock.unlock(); 
                     reply->set_appendsuccess(true);
                     reply->set_term(raftObject->currentTerm); 
@@ -220,21 +252,28 @@ class RaftResponder final : public Raft::Service {
                     raftObject->state = FOLLOWER;
                     raftObject->currentTerm = term;
                     raftObject->persist_currentTerm();
+                    printf("Responder:: RequetVote:: Before notify all\n");
                     raftObject->electionCV.notify_all();
+                    printf("Responder:: RequetVote:: After notify all\n");
                 }
 
-                if(raftObject->log.nextIdx > 1)
-                    tailEntry = raftObject->log.get_tail();
+                if(raftObject->log.nextIdx > 1){
+                    tailEntry = (raftObject->log.get_size()>0)?raftObject->log.get_tail(): raftObject->log.get_file_entry(raftObject->log.nextIdx-1);
+                }
                 else{
                     tailEntry.command_id = 0;    //Expecting 0 on first entry so that check fails
                     tailEntry.command_term = 0;
                 }
+                printf("RaftResponder:: RequestVote:: tailEntry.commandTerm =%d, tailEntry.command_id = %d, request->prevlogterm() = %d, request->prevlogidx = %d\n", tailEntry.command_term, tailEntry.command_id, request->prevlogterm(), request->prevlogidx());
 
                 if ((term <= raftObject->lastTermVotedFor) && ((raftObject->votedFor != -1))) { //You've already voted for someone or voted for yourself, don't vote!
+                    printf("RaftResponder:: RequestVote :: if 1\n");
                     reply->set_votegranted(false);
                 } else if ((tailEntry.command_term > request->prevlogterm()) || ((tailEntry.command_term == request->prevlogterm()) && (tailEntry.command_id > request->prevlogidx()))) { //Nope, election rule failed. :(
+                    printf("RaftResponder:: RequestVote :: if 2\n");
                     reply->set_votegranted(false);
                 } else { // Yes, democracy won, let's vote!
+                    printf("RaftResponder:: RequestVote :: if 3\n");
                     reply->set_votegranted(true);
                     raftObject->votedFor = request->candidateidx();
                     raftObject->lastTermVotedFor = request->term();
@@ -252,9 +291,9 @@ void RunDatabase(uint32_t serverIdx, raftUtil& raftObject) {
     std::string server_address;
 
     switch (serverIdx) {
-        case 0 : server_address = "10.10.1.1:50051"; break;
-        case 1 : server_address = "10.10.1.2:50051"; break;
-        case 2 : server_address = "10.10.1.3:50051"; break;
+        case 0 : server_address = "10.10.1.2:50051"; break;
+        case 1 : server_address = "10.10.1.2:50052"; break;
+        case 2 : server_address = "10.10.1.2:50053"; break;
         default : std::cout << "Illegal serverIdx. Exiting!" << std::endl; break;
     }
 
@@ -284,9 +323,9 @@ void RunRaft(uint32_t serverIdx, raftUtil& raftObject) {
     service.raftObject = &raftObject;
     std::string server_address;
     switch (serverIdx) {
-        case 0 : server_address = "10.10.1.1:2048"; break;
-        case 1 : server_address = "10.10.1.2:2048"; break;
-        case 2 : server_address = "10.10.1.3:2048"; break;
+        case 0 : server_address = "10.10.1.2:2048"; break;
+        case 1 : server_address = "10.10.1.2:2049"; break;
+        case 2 : server_address = "10.10.1.2:2050"; break;
         default : std::cout << "Illegal serverIdx. Exiting!" << std::endl; break;
     }
     grpc::EnableDefaultHealthCheckService(true);
@@ -320,7 +359,7 @@ int main(int argc, char** argv) {
     std::cout <<" This server's ID = " << serverIdx << std::endl;
 
     raftUtil raft(serverIdx);
-    raft.election_timeout_duration = 4000000;
+    raft.election_timeout_duration = 3000000;
     raft.heartbeat_interval = 500000;
     //raft.state = LEADER;
     std::thread peerThread(PeerThreadServer, std::ref(raft)); 

@@ -81,9 +81,9 @@ class raftUtil {
         std::ofstream fout_term;
 
         raftUtil(uint32_t id) : log(), database() {//And probably many more args
-            peerServerIPs[0] = "10.10.1.1:2048";
-            peerServerIPs[1] = "10.10.1.2:2048";
-            peerServerIPs[2] = "10.10.1.3:2048";
+            peerServerIPs[0] = "10.10.1.2:2048";
+            peerServerIPs[1] = "10.10.1.2:2049";
+            peerServerIPs[2] = "10.10.1.2:2050";
 
             serverIdx = id;
             currentTerm = 0;
@@ -190,13 +190,14 @@ class raftUtil {
 void electionTimer(std::chrono::microseconds us, raftUtil* raftObj, int *timed_out)
 {
     printf("Starting election timer\n");
+    printTime();
     raftObj->election_start = std::chrono::high_resolution_clock::now();
     do {
         std::this_thread::yield();
     } while (std::chrono::high_resolution_clock::now() < (raftObj->election_start+us));
     printf("electionTimer:: timeout done\n");
     std::unique_lock<std::mutex> lk(raftObj->electionLock, std::defer_lock);
-    printf("Exiting election Timer thread\n");
+    printf("election Timer notify all\n");
     raftObj->electionCV.notify_all();
     printf("Exiting election Timer thread\n");
     printTime();
@@ -214,7 +215,10 @@ void PeerRequestVote(int serverID, raftUtil* raftObj, RaftRequester &channel, in
         prev_entry.command_id = 0;
     }
     else{
-        prev_entry = raftObj->log.get_tail();
+        if(raftObj->log.get_size()>0)
+           prev_entry = raftObj->log.get_tail();
+        else
+           prev_entry = raftObj->log.get_file_entry(raftObj->log.nextIdx-1);
     }
     raftObj->raftLock.unlock();
 
@@ -351,6 +355,7 @@ void electionTimeout (std::chrono::microseconds timeout_time, raftUtil& raftObj)
                 std::this_thread::yield();
             }
             printf("ElectionTimeout:: Broke out of while 1 - will kill threads next\n");
+            printTime();
             raftObject->raftLock.lock();
             if (totalVotes >= 2){
                 //Won election
