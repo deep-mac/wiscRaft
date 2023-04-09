@@ -58,6 +58,8 @@ class raftUtil {
         std::mutex electionLock;
         std::condition_variable electionCV;
         std::chrono::time_point<std::chrono::high_resolution_clock> election_start;
+        std::mutex heartbeatLock;
+        std::condition_variable heartbeatCV;
         int leaderIdx;
         uint32_t serverIdx;
         int currentTerm;
@@ -118,17 +120,17 @@ class raftUtil {
             fin_term.close();
             persist_currentTerm();
 
-	    printf("BEFORE THE WEIRD LOOP\n");
-	    for(int j=log.LastApplied+1 ; j<log.nextIdx; j++){
-	       printf("INSIDE THE WEIRD LOOP\n");
-               LogEntry entry;
-	       int *value;
-	       value = new int;
-	       entry = log.get_entry(j-log.LastApplied-1);
-	       std::thread th(executeEntry,entry.command_term, entry.command_id,std::ref(log.LastApplied),std::ref(log.commitIdx),std::ref(*value), this);
-               bringupThreads.push_back(std::move(th));
-               bringupThreads.back().detach();
-	       delete value;
+            printf("BEFORE THE WEIRD LOOP\n");
+            for(int j=log.LastApplied+1 ; j<log.nextIdx; j++){
+                printf("INSIDE THE WEIRD LOOP\n");
+                LogEntry entry;
+                int *value;
+                value = new int;
+                entry = log.get_entry(j-log.LastApplied-1);
+                std::thread th(executeEntry,entry.command_term, entry.command_id,std::ref(log.LastApplied),std::ref(log.commitIdx),std::ref(*value), this);
+                bringupThreads.push_back(std::move(th));
+                bringupThreads.back().detach();
+                delete value;
             }
         }
 
@@ -267,7 +269,7 @@ void electionTimeout (std::chrono::microseconds timeout_time, raftUtil& raftObj)
         if (raftObj.state != LEADER){ 
             int timeout_flag = 0;
             int timed_out = 0;
-            
+
             if (raftObj.state != CANDIDATE) {
                 std::thread electionTimerThread(electionTimer, std::chrono::microseconds(raftObj.election_timeout_duration), &raftObj, &timed_out);
                 while(timeout_flag == 0 ){
@@ -354,6 +356,7 @@ void electionTimeout (std::chrono::microseconds timeout_time, raftUtil& raftObj)
                 //Won election
                 //This will make sure the election timeout thread dies
                 printf("BECAME LEADER\n");
+                raftObject->log.matchIdx = raftObject->log.commitIdx;
                 raftObject->leaderIdx = raftObject->serverIdx;
                 raftObject->election_start = raftObject->election_start - std::chrono::microseconds(raftObj.election_timeout_duration);
                 raftObject->state = LEADER;
@@ -431,6 +434,9 @@ void heartbeatThread(std::chrono::microseconds us, raftUtil& raftObj)
                         peerSendHeartBeatThread[i] = std::thread(PeerSendHeartBeat, i, raftObject, std::ref(raftObject->peerServers[i]), &ret_term[i], &success[i]);
                         peerSendHeartBeatThread[i].detach();
                     }
+                    std::unique_lock<std::mutex> lk(raftObject->heartbeatLock, std::defer_lock);
+                    printf("Exiting election Timer thread\n");
+                    raftObject->heartbeatCV.notify_all();
                 }
                 printf("Spawned heartbeat threads\n");
                 while(1){
@@ -470,7 +476,7 @@ void PeerAppendEntry(int serverID, raftUtil* raftObj, RaftRequester &channel){
     bool ret_resp;
     int ret_term;
 
-    int start = raftObj->log.nextIdx - 1;     //This variable is analogous to the nextIdx on the paper for each follower server 
+    int start = raftObj->log.nextIdx;     //This variable is analogous to the nextIdx on the paper for each follower server 
     while(1){
         raftObj->raftLock.lock();
         //  std::cout<<"Got the lock for peer append entry thread for server "<<serverID<<std::endl;
@@ -481,13 +487,13 @@ void PeerAppendEntry(int serverID, raftUtil* raftObj, RaftRequester &channel){
             if(start > raftObj->log.LastApplied){                                 //Get from volatile log
                 entry = raftObj->log.get_entry(start - raftObj->log.LastApplied - 1);
                 if(start > 1) {
-		    int prevIdx = start - raftObj->log.LastApplied - 2;
- 		    if (prevIdx >= 0) {
-	                prev_entry = raftObj->log.get_entry(start - raftObj->log.LastApplied - 2);
-		    } else {
+                    int prevIdx = start - raftObj->log.LastApplied - 2;
+                    if (prevIdx >= 0) {
+                        prev_entry = raftObj->log.get_entry(start - raftObj->log.LastApplied - 2);
+                    } else {
                         prev_entry = raftObj->log.get_file_entry(start-1);
-		    }
-		}
+                    }
+                }
             }
             else{
                 entry = raftObj->log.get_file_entry(start);
@@ -498,7 +504,9 @@ void PeerAppendEntry(int serverID, raftUtil* raftObj, RaftRequester &channel){
 
             bool rpc_status = channel.AppendEntries(raftObj->currentTerm,raftObj->leaderIdx,prev_entry.command_id,prev_entry.command_term,entry.GetOrPut, entry.key, entry.value, entry.command_id, entry.command_term, raftObj->log.commitIdx, false, ret_term, ret_resp); //Call RPC
             if (rpc_status == false) {
-                printf("RPC Failed\n");
+                printf("RPC Failed, waiting for heartbeat\n");
+                std::unique_lock<std::mutex> lk(raftObj->heartbeatLock, std::defer_lock);
+                raftObj->heartbeatCV.wait(lk);
                 continue;
             } else {
                 printf("RPC Success for %d\n", serverID);
@@ -599,23 +607,37 @@ void PeerThreadServer(raftUtil& raftObj){
                 //          std::cout<<"Peer Server Master Thread locked"<<std::endl;
 
                 if(raftObject->log.get_size() > raftObject->log.matchIdx - raftObject->log.LastApplied){                     //Check for unmatched entries in the volatile log
+                    printf("PeerThreadServer:: raftObject->log.matchIdx = %d, raftObject->log.LastApplied = %d, raftObject->log.get_size() = %d\n", raftObject->log.matchIdx, raftObject->log.LastApplied, raftObject->log.get_size());
+                    for(int i=raftObject->log.get_size() ; i>0 ; i--){                        //Sweep through the volatile log to find the most recent matched idx and set all the previous entries to true
+                       LogEntry entry = raftObject->log.get_entry(i-1);
+                       for(int j=0; j<3 ; j++){
+                          if(entry.matched[i] == true)
+                             for(int k=i-1; k>0; k--)
+                                raftObject->log.set_matched(k-1,j);
+                       }
+                    }
                     raftObject->log.set_matched(raftObject->log.matchIdx-raftObject->log.LastApplied,raftObject->serverIdx);             //Set Committed status for the leader server 
                     matched = raftObject->log.get_entry(raftObject->log.matchIdx-raftObject->log.LastApplied).matched;        //Read the matched status, no need for locks as no scope for race around, maybe double check?
-                    for(int i=0; i<3; i++)
+                    for(int i=0; i<3; i++){
                         if(i != raftObject->serverIdx && matched[i]){                                   //Check for majority, since we have only 3 servers, getting one other ack will give majority!
                             raftObject->log.matchIdx++;
+                            printf("PeerThreadServer:: Incremented matchIdx = %d \n", raftObject->log.matchIdx);
                             for(int j=0; j<raftObject->log.get_size(); j++){                                         //Well, fun part here, checking if matched till last term, then commit (commit rule)
                                 LogEntry val = raftObject->log.get_entry(j);
                                 if(val.command_term == raftObject->currentTerm){
+                                    printf("PeerThreadServer:: j = %d, matchIdx = %d, val.command_id = %d \n", j, raftObject->log.matchIdx, val.command_id);
                                     if(raftObject->log.matchIdx >= val.command_id){
                                         raftObject->log.commitIdx = raftObject->log.matchIdx;
                                         raftObject->log.persist_commitIdx();                                                
+                                        break;
                                     }
                                     else
                                         break;
                                 }
                             }
+                            break;
                         }
+                    }
 
                     raftObject->raftLock.unlock();
                     //           std::cout<<"Peer Server Master Thread unlocked"<<std::endl;
